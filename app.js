@@ -1,2065 +1,2226 @@
 "use strict";
 
 /* =========================================================
-   BUSINESS DISTRICT
-   Core Game Engine
-========================================================= */
+   BUSINESS DISTRICT — APP.JS
+   Версия 3.0
+   ========================================================= */
 
-const SAVE_KEY = "business-district-save-v2";
-const SAVE_VERSION = 2;
-
-/* =========================================================
-   DATA
-========================================================= */
-
-const INDUSTRIES = {
-  COFFEE: {
-    price: 180,
-    cost: 0.34,
-    demand: 90
-  },
-
-  FASHION: {
-    price: 420,
-    cost: 0.45,
-    demand: 70
-  },
-
-  FOOD: {
-    price: 240,
-    cost: 0.40,
-    demand: 100
-  },
-
-  IT: {
-    price: 650,
-    cost: 0.25,
-    demand: 55
-  },
-
-  SERVICES: {
-    price: 330,
-    cost: 0.22,
-    demand: 65
-  },
-
-  RETAIL: {
-    price: 300,
-    cost: 0.48,
-    demand: 80
-  }
-};
-
-const DISTRICTS = {
-  CENTRAL: {
-    rent: 850,
-    traffic: 1.25,
-    demand: 1.20,
-    competition: 1.35
-  },
-
-  NORTH: {
-    rent: 520,
-    traffic: 1.00,
-    demand: 1.00,
-    competition: 1.00
-  },
-
-  SOUTH: {
-    rent: 430,
-    traffic: 0.92,
-    demand: 0.95,
-    competition: 0.85
-  },
-
-  INDUSTRIAL: {
-    rent: 300,
-    traffic: 0.72,
-    demand: 0.80,
-    competition: 0.65
-  },
-
-  RIVERSIDE: {
-    rent: 700,
-    traffic: 1.10,
-    demand: 1.18,
-    competition: 1.05
-  }
-};
-
-const STAFF_TYPES = {
-  SALES: {
-    name: "Sales Manager",
-    salary: 420,
-    efficiency: 0.16
-  },
-
-  ACCOUNTANT: {
-    name: "Accountant",
-    salary: 480,
-    efficiency: 0.05
-  },
-
-  DEVELOPER: {
-    name: "Developer",
-    salary: 650,
-    efficiency: 0.18
-  },
-
-  DESIGNER: {
-    name: "Designer",
-    salary: 450,
-    efficiency: 0.10
-  },
-
-  MARKETING: {
-    name: "Marketing Manager",
-    salary: 500,
-    efficiency: 0.16
-  },
-
-  OPERATIONS: {
-    name: "Operations Manager",
-    salary: 560,
-    efficiency: 0.12
-  }
-};
-
-const BUILDINGS = {
-  SHOP: {
-    name: "Small Shop",
-    price: 3500,
-    rent: 180,
-    capacity: 1.20
-  },
-
-  OFFICE: {
-    name: "Office",
-    price: 5000,
-    rent: 260,
-    capacity: 1.15
-  },
-
-  CAFE: {
-    name: "Cafe",
-    price: 4500,
-    rent: 240,
-    capacity: 1.30
-  },
-
-  RESTAURANT: {
-    name: "Restaurant",
-    price: 8500,
-    rent: 450,
-    capacity: 1.55
-  },
-
-  WAREHOUSE: {
-    name: "Warehouse",
-    price: 6000,
-    rent: 300,
-    capacity: 1.08
-  }
-};
-
-const MARKETING = {
-  SOCIAL: {
-    name: "Social",
-    cost: 450,
-    effect: 1.14,
-    days: 3
-  },
-
-  SEARCH: {
-    name: "Search",
-    cost: 700,
-    effect: 1.20,
-    days: 4
-  },
-
-  INFLUENCER: {
-    name: "Influencer",
-    cost: 1300,
-    effect: 1.38,
-    days: 3
-  },
-
-  BILLBOARD: {
-    name: "Billboard",
-    cost: 1000,
-    effect: 1.24,
-    days: 5
-  },
-
-  LOCAL: {
-    name: "Local Event",
-    cost: 800,
-    effect: 1.30,
-    days: 2
-  }
-};
+const SAVE_KEY = "business_district_v3";
+const VERSION = 3;
 
 /* =========================================================
-   ACHIEVEMENTS
-========================================================= */
+   ФОРМАТИРОВАНИЕ
+   ========================================================= */
 
-const ACHIEVEMENTS = [
-  ["FIRST_PROFIT", "First Profit"],
-  ["FIRST_EMPLOYEE", "First Employee"],
-  ["100_CUSTOMERS", "100 Customers"],
-  ["100K_CASH", "100K Cash"],
-  ["FIRST_LOCATION", "First Location"],
-  ["10_EMPLOYEES", "10 Employees"],
-  ["1M_VALUE", "1M Company Value"],
-  ["MARKET_LEADER", "Market Leader"],
-  ["FIRST_LOAN", "First Loan"],
-  ["DEBT_FREE", "Debt Free"],
-  ["100_DAYS", "100 Days"],
-  ["10_LOCATIONS", "10 Locations"],
-  ["1M_REVENUE", "1M Revenue"],
-  ["VIRAL", "Viral Campaign"],
-  ["EMPIRE", "Business Empire"]
-];
+const money = new Intl.NumberFormat("ru-RU", {
+  style: "currency",
+  currency: "UAH",
+  maximumFractionDigits: 0
+});
 
-/* =========================================================
-   EVENTS
-========================================================= */
+const integer = new Intl.NumberFormat("ru-RU", {
+  maximumFractionDigits: 0
+});
 
-const EVENTS = [
-  {
-    title: "Supplier price hike",
-    text: "A key supplier suddenly raises prices.",
-    choices: [
-      {
-        title: "Accept the increase",
-        effect: { costRate: 0.08 }
-      },
-      {
-        title: "Find another supplier",
-        effect: { cash: -350, reputation: 1 }
-      }
-    ]
-  },
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
 
-  {
-    title: "Viral post",
-    text: "A post about your company starts spreading.",
-    choices: [
-      {
-        title: "Ride the wave",
-        effect: {
-          marketing: 0.20,
-          reputation: 3,
-          viral: true
-        }
-      },
-      {
-        title: "Ignore it",
-        effect: {}
-      }
-    ]
-  },
-
-  {
-    title: "New competitor",
-    text: "A strong competitor opens nearby.",
-    choices: [
-      {
-        title: "Defend your market",
-        effect: {
-          cash: -500,
-          reputation: 2
-        }
-      },
-      {
-        title: "Ignore them",
-        effect: {
-          reputation: -2
-        }
-      }
-    ]
-  },
-
-  {
-    title: "Staff resignation",
-    text: "One employee wants to leave.",
-    choices: [
-      {
-        title: "Accept the resignation",
-        effect: {
-          staffLoss: 1
-        }
-      },
-      {
-        title: "Offer a bonus",
-        effect: {
-          cash: -600,
-          morale: 8
-        }
-      }
-    ]
-  },
-
-  {
-    title: "Local festival",
-    text: "The city is unusually busy today.",
-    choices: [
-      {
-        title: "Open late",
-        effect: {
-          traffic: 0.25
-        }
-      },
-      {
-        title: "Keep normal hours",
-        effect: {}
-      }
-    ]
-  },
-
-  {
-    title: "Supply shortage",
-    text: "Some products are harder to source.",
-    choices: [
-      {
-        title: "Find alternatives",
-        effect: {
-          cash: -300
-        }
-      },
-      {
-        title: "Accept lower stock",
-        effect: {
-          demand: -0.15
-        }
-      }
-    ]
-  },
-
-  {
-    title: "Rent increase",
-    text: "Landlords raise commercial rents.",
-    choices: [
-      {
-        title: "Absorb the increase",
-        effect: {
-          rent: 0.15
-        }
-      },
-      {
-        title: "Move later",
-        effect: {
-          reputation: -1
-        }
-      }
-    ]
-  },
-
-  {
-    title: "Big client",
-    text: "A large client offers a one-day contract.",
-    choices: [
-      {
-        title: "Take the contract",
-        effect: {
-          revenue: 0.25
-        }
-      },
-      {
-        title: "Decline",
-        effect: {}
-      }
-    ]
-  },
-
-  {
-    title: "Bad review",
-    text: "A negative review becomes visible.",
-    choices: [
-      {
-        title: "Respond publicly",
-        effect: {
-          reputation: 2
-        }
-      },
-      {
-        title: "Ignore it",
-        effect: {
-          reputation: -2
-        }
-      }
-    ]
-  },
-
-  {
-    title: "Good review",
-    text: "A customer publishes a glowing review.",
-    choices: [
-      {
-        title: "Share it",
-        effect: {
-          reputation: 3,
-          marketing: 0.08
-        }
-      },
-      {
-        title: "Do nothing",
-        effect: {
-          reputation: 1
-        }
-      }
-    ]
-  },
-
-  {
-    title: "Market boom",
-    text: "Consumers are spending more than usual.",
-    choices: [
-      {
-        title: "Scale today",
-        effect: {
-          demand: 0.25
-        }
-      },
-      {
-        title: "Protect cash",
-        effect: {}
-      }
-    ]
-  },
-
-  {
-    title: "Market crash",
-    text: "Consumer confidence suddenly falls.",
-    choices: [
-      {
-        title: "Protect cash",
-        effect: {
-          demand: -0.15
-        }
-      },
-      {
-        title: "Keep investing",
-        effect: {
-          demand: 0.05,
-          cash: -500
-        }
-      }
-    ]
-  },
-
-  {
-    title: "Influencer offer",
-    text: "A creator offers to promote your business.",
-    choices: [
-      {
-        title: "Accept",
-        effect: {
-          cash: -800,
-          marketing: 0.25,
-          reputation: 2,
-          viral: true
-        }
-      },
-      {
-        title: "Decline",
-        effect: {}
-      }
-    ]
-  },
-
-  {
-    title: "Equipment failure",
-    text: "Important equipment stops working.",
-    choices: [
-      {
-        title: "Repair immediately",
-        effect: {
-          cash: -600
-        }
-      },
-      {
-        title: "Work around it",
-        effect: {
-          demand: -0.20
-        }
-      }
-    ]
-  },
-
-  {
-    title: "New district",
-    text: "The city announces a new commercial zone.",
-    choices: [
-      {
-        title: "Explore the opportunity",
-        effect: {
-          reputation: 1
-        }
-      },
-      {
-        title: "Stay focused",
-        effect: {}
-      }
-    ]
-  }
-];
-
-/* =========================================================
-   STATE
-========================================================= */
-
-function createEmptyState() {
-  return {
-    version: SAVE_VERSION,
-
-    name: "",
-    industry: "COFFEE",
-    strategy: "balanced",
-    district: "CENTRAL",
-
-    day: 1,
-
-    cash: 10000,
-    reputation: 8,
-    companyValue: 10000,
-
-    totalCustomers: 0,
-    lifetimeRevenue: 0,
-    lifetimeProfit: 0,
-
-    staff: [],
-    buildings: [],
-    loans: [],
-    marketing: [],
-
-    history: [],
-    achievements: [],
-
-    market: {},
-
-    event: null,
-
-    flags: {
-      hadLoan: false,
-      viral: false
-    },
-
-    modifiers: {
-      costRate: 0,
-      marketing: 1,
-      demand: 1,
-      revenue: 1,
-      rent: 1,
-      traffic: 1
-    }
-  };
+function formatMoney(value) {
+  return money.format(Math.round(value || 0));
 }
 
-let state = loadState() || createEmptyState();
-
-let currentScreen = state.name ? "home" : "start";
-
-/* =========================================================
-   STORAGE
-========================================================= */
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw);
-
-    if (!parsed || parsed.version !== SAVE_VERSION) {
-      localStorage.removeItem(SAVE_KEY);
-      return null;
-    }
-
-    return parsed;
-  } catch (error) {
-    console.error(error);
-    localStorage.removeItem(SAVE_KEY);
-    return null;
-  }
-}
-
-function saveState() {
-  localStorage.setItem(
-    SAVE_KEY,
-    JSON.stringify(state)
-  );
-}
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function money(value) {
-  return "₴" + Math.round(value).toLocaleString("uk-UA");
-}
-
-function escapeHTML(value) {
-  return String(value).replace(/[&<>"']/g, char => {
-    const map = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    };
-
-    return map[char];
-  });
+function formatNumber(value) {
+  return integer.format(Math.round(value || 0));
 }
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function toast(message) {
-  const element = document.getElementById("toast");
+function random(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function randomInt(min, max) {
+  return Math.floor(random(min, max + 1));
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+/* =========================================================
+   ИГРОВЫЕ ДАННЫЕ
+   ========================================================= */
+
+const INDUSTRIES = {
+  COFFEE: {
+    name: "Кофейня",
+    short: "Кофе",
+    baseDemand: 62,
+    averagePrice: 180,
+    productCost: 0.34
+  },
+
+  FASHION: {
+    name: "Магазин одежды",
+    short: "Мода",
+    baseDemand: 30,
+    averagePrice: 1200,
+    productCost: 0.48
+  },
+
+  FOOD: {
+    name: "Еда",
+    short: "Еда",
+    baseDemand: 50,
+    averagePrice: 350,
+    productCost: 0.45
+  },
+
+  IT: {
+    name: "IT-компания",
+    short: "IT",
+    baseDemand: 20,
+    averagePrice: 1800,
+    productCost: 0.28
+  },
+
+  SERVICES: {
+    name: "Услуги",
+    short: "Услуги",
+    baseDemand: 38,
+    averagePrice: 700,
+    productCost: 0.30
+  },
+
+  RETAIL: {
+    name: "Розничный магазин",
+    short: "Ритейл",
+    baseDemand: 36,
+    averagePrice: 950,
+    productCost: 0.52
+  }
+};
+
+const STRATEGIES = {
+  PREMIUM: {
+    name: "Премиум",
+    price: 1.25,
+    demand: 0.84,
+    reputation: 1.08
+  },
+
+  BALANCED: {
+    name: "Сбалансированная",
+    price: 1,
+    demand: 1,
+    reputation: 1
+  },
+
+  LOW_COST: {
+    name: "Низкая цена",
+    price: 0.82,
+    demand: 1.22,
+    reputation: 0.97
+  },
+
+  INNOVATIVE: {
+    name: "Инновационная",
+    price: 1.05,
+    demand: 1.05,
+    reputation: 1.15
+  }
+};
+
+const DISTRICTS = {
+  CENTRAL: {
+    name: "Центр",
+    code: "CTR",
+    demand: 1.15,
+    rent: 1.35,
+    competition: 1.25,
+    traffic: 1.35
+  },
+
+  NORTH: {
+    name: "Север",
+    code: "NTH",
+    demand: 0.90,
+    rent: 0.85,
+    competition: 0.85,
+    traffic: 0.85
+  },
+
+  SOUTH: {
+    name: "Юг",
+    code: "STH",
+    demand: 1.05,
+    rent: 1.05,
+    competition: 1,
+    traffic: 1.10
+  },
+
+  INDUSTRIAL: {
+    name: "Промзона",
+    code: "IND",
+    demand: 0.80,
+    rent: 0.65,
+    competition: 0.65,
+    traffic: 0.70
+  },
+
+  RIVERSIDE: {
+    name: "Набережная",
+    code: "RIV",
+    demand: 1.20,
+    rent: 1.20,
+    competition: 1.10,
+    traffic: 1.25
+  }
+};
+
+const STAFF = {
+  SALES: {
+    name: "Менеджер по продажам",
+    salary: 650,
+    efficiency: 1.08
+  },
+
+  ACCOUNTANT: {
+    name: "Бухгалтер",
+    salary: 700,
+    efficiency: 1.05
+  },
+
+  DEVELOPER: {
+    name: "Разработчик",
+    salary: 1100,
+    efficiency: 1.12
+  },
+
+  DESIGNER: {
+    name: "Дизайнер",
+    salary: 750,
+    efficiency: 1.07
+  },
+
+  MARKETING: {
+    name: "Маркетолог",
+    salary: 800,
+    efficiency: 1.12
+  },
+
+  OPERATIONS: {
+    name: "Операционный менеджер",
+    salary: 900,
+    efficiency: 1.10
+  }
+};
+
+const MARKETING = {
+  SOCIAL: {
+    name: "Социальные сети",
+    cost: 350,
+    multiplier: 1.12,
+    days: 3,
+    reputation: 1
+  },
+
+  SEARCH: {
+    name: "Поисковая реклама",
+    cost: 550,
+    multiplier: 1.18,
+    days: 4,
+    reputation: 1
+  },
+
+  INFLUENCER: {
+    name: "Инфлюенсер",
+    cost: 1000,
+    multiplier: 1.35,
+    days: 5,
+    reputation: 3
+  },
+
+  BILLBOARD: {
+    name: "Билборд",
+    cost: 1300,
+    multiplier: 1.28,
+    days: 7,
+    reputation: 2
+  },
+
+  LOCAL_EVENT: {
+    name: "Городское мероприятие",
+    cost: 800,
+    multiplier: 1.25,
+    days: 3,
+    reputation: 2
+  }
+};
+
+const BUILDINGS = {
+  SHOP: {
+    name: "Небольшой магазин",
+    price: 8000,
+    rent: 350,
+    capacity: 70,
+    multiplier: 1.08
+  },
+
+  OFFICE: {
+    name: "Офис",
+    price: 12000,
+    rent: 500,
+    capacity: 45,
+    multiplier: 1.07
+  },
+
+  WAREHOUSE: {
+    name: "Склад",
+    price: 9000,
+    rent: 300,
+    capacity: 90,
+    multiplier: 1.05
+  },
+
+  CAFE: {
+    name: "Кафе",
+    price: 18000,
+    rent: 750,
+    capacity: 120,
+    multiplier: 1.20
+  },
+
+  RESTAURANT: {
+    name: "Ресторан",
+    price: 32000,
+    rent: 1200,
+    capacity: 190,
+    multiplier: 1.34
+  }
+};
+
+const ACHIEVEMENTS = {
+  FIRST_PROFIT: {
+    title: "Первая прибыль",
+    description: "Получить первую положительную прибыль."
+  },
+
+  FIRST_EMPLOYEE: {
+    title: "Первый сотрудник",
+    description: "Нанять первого сотрудника."
+  },
+
+  CUSTOMERS_100: {
+    title: "100 клиентов",
+    description: "Обслужить 100 клиентов."
+  },
+
+  CASH_100K: {
+    title: "100 тысяч",
+    description: "Накопить 100 000 ₴."
+  },
+
+  FIRST_BUILDING: {
+    title: "Первая недвижимость",
+    description: "Купить первое здание."
+  },
+
+  EMPLOYEES_10: {
+    title: "Большая команда",
+    description: "Нанять 10 сотрудников."
+  },
+
+  VALUE_1M: {
+    title: "Миллионная компания",
+    description: "Достичь стоимости 1 000 000 ₴."
+  },
+
+  REPUTATION_80: {
+    title: "Репутация",
+    description: "Достичь 80 репутации."
+  },
+
+  FIRST_LOAN: {
+    title: "Первый кредит",
+    description: "Взять первый кредит."
+  },
+
+  DEBT_FREE: {
+    title: "Без долгов",
+    description: "Полностью погасить кредиты."
+  },
+
+  DAY_100: {
+    title: "100 дней",
+    description: "Продержаться 100 дней."
+  },
+
+  BUILDINGS_10: {
+    title: "Империя",
+    description: "Построить 10 объектов."
+  },
+
+  REVENUE_1M: {
+    title: "Миллион выручки",
+    description: "Получить 1 000 000 ₴ общей выручки."
+  },
+
+  MARKETING: {
+    title: "Громкий бренд",
+    description: "Запустить сильную рекламную кампанию."
+  },
+
+  LEVEL_10: {
+    title: "Бизнес-империя",
+    description: "Достичь 10 уровня."
+  }
+};
+
+/* =========================================================
+   СОБЫТИЯ
+   ========================================================= */
+
+const EVENTS = [
+
+  {
+    title: "Рост цен поставщика",
+    description: "Ваш основной поставщик повысил цены.",
+    choices: [
+      {
+        title: "Принять новые цены",
+        description: "Себестоимость увеличится на 10% на несколько дней.",
+        action() {
+          state.company.effects.cost *= 1.10;
+          state.company.effects.costDays = 3;
+        }
+      },
+      {
+        title: "Найти нового поставщика",
+        description: "Потратить 700 ₴, но избежать роста расходов.",
+        action() {
+          if (state.company.cash >= 700) {
+            state.company.cash -= 700;
+          } else {
+            state.company.reputation -= 2;
+          }
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Вирусная публикация",
+    description: "Пост о вашей компании неожиданно набрал популярность.",
+    choices: [
+      {
+        title: "Поддержать волну",
+        description: "Заплатить 500 ₴ и увеличить спрос.",
+        action() {
+          if (state.company.cash >= 500) {
+            state.company.cash -= 500;
+            state.company.effects.demand *= 1.25;
+            state.company.effects.demandDays = 4;
+            state.company.reputation += 5;
+          }
+        }
+      },
+      {
+        title: "Ничего не делать",
+        description: "Получить небольшой рост репутации.",
+        action() {
+          state.company.reputation += 2;
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Новый конкурент",
+    description: "Сильный конкурент открылся рядом с вами.",
+    choices: [
+      {
+        title: "Снизить цену",
+        description: "Цена снизится на 5%, спрос увеличится.",
+        action() {
+          state.company.priceMultiplier *= 0.95;
+          state.company.effects.demand *= 1.08;
+          state.company.effects.demandDays = 3;
+        }
+      },
+      {
+        title: "Усилить бренд",
+        description: "Потратить 900 ₴ на продвижение.",
+        action() {
+          if (state.company.cash >= 900) {
+            state.company.cash -= 900;
+            state.company.reputation += 6;
+          }
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Городской фестиваль",
+    description: "В вашем районе проходит крупное мероприятие.",
+    choices: [
+      {
+        title: "Участвовать",
+        description: "800 ₴. Спрос увеличится на 3 дня.",
+        action() {
+          if (state.company.cash >= 800) {
+            state.company.cash -= 800;
+            state.company.effects.demand *= 1.22;
+            state.company.effects.demandDays = 3;
+          }
+        }
+      },
+      {
+        title: "Пропустить",
+        description: "Без изменений.",
+        action() {}
+      }
+    ]
+  },
+
+  {
+    title: "Крупный клиент",
+    description: "Большая компания предлагает вам контракт.",
+    choices: [
+      {
+        title: "Принять",
+        description: "Получить 2500 ₴ и репутацию.",
+        action() {
+          state.company.cash += 2500;
+          state.company.reputation += 4;
+        }
+      },
+      {
+        title: "Отказаться",
+        description: "Сохранить текущую загрузку.",
+        action() {}
+      }
+    ]
+  },
+
+  {
+    title: "Плохой отзыв",
+    description: "Недовольный клиент оставил негативный отзыв.",
+    choices: [
+      {
+        title: "Компенсировать",
+        description: "Потратить 300 ₴.",
+        action() {
+          if (state.company.cash >= 300) {
+            state.company.cash -= 300;
+          } else {
+            state.company.reputation -= 2;
+          }
+        }
+      },
+      {
+        title: "Проигнорировать",
+        description: "Репутация снизится.",
+        action() {
+          state.company.reputation -= 5;
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Отличный отзыв",
+    description: "Популярный клиент положительно рассказал о компании.",
+    choices: [
+      {
+        title: "Поблагодарить",
+        description: "Репутация +4.",
+        action() {
+          state.company.reputation += 4;
+        }
+      },
+      {
+        title: "Продвинуть отзыв",
+        description: "400 ₴. Репутация +8.",
+        action() {
+          if (state.company.cash >= 400) {
+            state.company.cash -= 400;
+            state.company.reputation += 8;
+          }
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Рынок растёт",
+    description: "Потребительский спрос резко увеличился.",
+    choices: [
+      {
+        title: "Увеличить запасы",
+        description: "900 ₴. Спрос увеличится.",
+        action() {
+          if (state.company.cash >= 900) {
+            state.company.cash -= 900;
+            state.company.effects.demand *= 1.15;
+            state.company.effects.demandDays = 3;
+          }
+        }
+      },
+      {
+        title: "Ничего не менять",
+        description: "Работать как обычно.",
+        action() {}
+      }
+    ]
+  },
+
+  {
+    title: "Просадка рынка",
+    description: "Люди стали осторожнее тратить деньги.",
+    choices: [
+      {
+        title: "Снизить цену",
+        description: "Цена -8%, спрос частично восстановится.",
+        action() {
+          state.company.priceMultiplier *= 0.92;
+          state.company.effects.demand *= 1.10;
+          state.company.effects.demandDays = 3;
+        }
+      },
+      {
+        title: "Сохранить цену",
+        description: "Не менять стратегию.",
+        action() {}
+      }
+    ]
+  },
+
+  {
+    title: "Предложение инфлюенсера",
+    description: "Известный блогер предлагает рекламную интеграцию.",
+    choices: [
+      {
+        title: "Согласиться",
+        description: "1200 ₴. Сильный рост спроса.",
+        action() {
+          if (state.company.cash >= 1200) {
+            state.company.cash -= 1200;
+            state.company.effects.demand *= 1.35;
+            state.company.effects.demandDays = 5;
+            state.company.reputation += 5;
+          }
+        }
+      },
+      {
+        title: "Отказаться",
+        description: "Слишком дорого.",
+        action() {}
+      }
+    ]
+  },
+
+  {
+    title: "Поломка оборудования",
+    description: "Оборудование неожиданно вышло из строя.",
+    choices: [
+      {
+        title: "Починить",
+        description: "Заплатить 600 ₴.",
+        action() {
+          if (state.company.cash >= 600) {
+            state.company.cash -= 600;
+          }
+        }
+      },
+      {
+        title: "Работать с ограничениями",
+        description: "Вместимость снизится на один день.",
+        action() {
+          state.company.effects.capacity *= 0.75;
+          state.company.effects.capacityDays = 1;
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Повышение аренды",
+    description: "Владелец помещения хочет увеличить аренду.",
+    choices: [
+      {
+        title: "Остаться",
+        description: "Аренда увеличится на 15%.",
+        action() {
+          state.company.effects.rent *= 1.15;
+          state.company.effects.rentDays = 5;
+        }
+      },
+      {
+        title: "Переехать",
+        description: "Потратить 1500 ₴.",
+        action() {
+          if (state.company.cash >= 1500) {
+            state.company.cash -= 1500;
+          }
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Сотрудник хочет уйти",
+    description: "Один из сотрудников получил предложение от конкурента.",
+    choices: [
+      {
+        title: "Повысить зарплату",
+        description: "Потратить 600 ₴.",
+        action() {
+          if (state.company.cash >= 600) {
+            state.company.cash -= 600;
+          }
+        }
+      },
+      {
+        title: "Отпустить",
+        description: "Сотрудник покинет компанию.",
+        action() {
+          if (state.company.employees.length > 0) {
+            state.company.employees.pop();
+          }
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Дефицит товаров",
+    description: "Некоторые поставки временно задерживаются.",
+    choices: [
+      {
+        title: "Купить запас",
+        description: "1200 ₴.",
+        action() {
+          if (state.company.cash >= 1200) {
+            state.company.cash -= 1200;
+          }
+        }
+      },
+      {
+        title: "Подождать",
+        description: "Себестоимость временно увеличится.",
+        action() {
+          state.company.effects.cost *= 1.12;
+          state.company.effects.costDays = 2;
+        }
+      }
+    ]
+  },
+
+  {
+    title: "Новый район",
+    description: "Город начал развивать новую деловую зону.",
+    choices: [
+      {
+        title: "Инвестировать",
+        description: "1000 ₴. Стоимость компании +5000 ₴.",
+        action() {
+          if (state.company.cash >= 1000) {
+            state.company.cash -= 1000;
+            state.company.companyValue += 5000;
+          }
+        }
+      },
+      {
+        title: "Наблюдать",
+        description: "Пока ничего не делать.",
+        action() {}
+      }
+    ]
+  }
+];
+
+/* =========================================================
+   СОСТОЯНИЕ
+   ========================================================= */
+
+function createDefaultState() {
+  const market = {};
+
+  Object.entries(INDUSTRIES).forEach(([key, industry]) => {
+    market[key] = {
+      demand: 1,
+      trend: 0,
+      competition: randomInt(35, 70),
+      history: [1, 1, 1, 1, 1, 1, 1]
+    };
+  });
+
+  return {
+    version: VERSION,
+
+    initialized: false,
+
+    day: 1,
+
+    market,
+
+    analytics: [],
+
+    eventHistory: [],
+
+    unlockedAchievements: [],
+
+    ui: {
+      screen: "home",
+      analyticsPeriod: 7
+    },
+
+    pendingEvent: null,
+
+    company: {
+      name: "",
+      industry: "COFFEE",
+      strategy: "BALANCED",
+      district: "CENTRAL",
+
+      cash: 10000,
+
+      reputation: 20,
+
+      level: 1,
+
+      experience: 0,
+
+      totalRevenue: 0,
+
+      totalExpenses: 0,
+
+      totalProfit: 0,
+
+      totalCustomers: 0,
+
+      companyValue: 10000,
+
+      priceMultiplier: 1,
+
+      employees: [],
+
+      buildings: [],
+
+      loans: [],
+
+      campaigns: [],
+
+      effects: {
+        demand: 1,
+        demandDays: 0,
+
+        marketing: 1,
+        marketingDays: 0,
+
+        cost: 1,
+        costDays: 0,
+
+        rent: 1,
+        rentDays: 0,
+
+        capacity: 1,
+        capacityDays: 0
+      }
+    }
+  };
+}
+
+let state = createDefaultState();
+
+/* =========================================================
+   СОХРАНЕНИЕ
+   ========================================================= */
+
+function saveGame() {
+  try {
+    localStorage.setItem(
+      SAVE_KEY,
+      JSON.stringify(state)
+    );
+  } catch (error) {
+    console.error("Не удалось сохранить игру:", error);
+  }
+}
+
+function loadGame() {
+  try {
+    const saved = localStorage.getItem(SAVE_KEY);
+
+    if (!saved) {
+      state = createDefaultState();
+      return;
+    }
+
+    const parsed = JSON.parse(saved);
+
+    if (
+      !parsed ||
+      parsed.version !== VERSION ||
+      !parsed.company
+    ) {
+      state = createDefaultState();
+      return;
+    }
+
+    state = parsed;
+
+  } catch (error) {
+    console.error("Ошибка загрузки:", error);
+    state = createDefaultState();
+  }
+}
+
+function deleteSave() {
+  localStorage.removeItem(SAVE_KEY);
+  state = createDefaultState();
+  render();
+}
+
+/* =========================================================
+   UI
+   ========================================================= */
+
+function showToast(message) {
+  const element = $("#toast");
+
+  if (!element) return;
 
   element.textContent = message;
   element.classList.add("show");
 
-  setTimeout(() => {
+  clearTimeout(showToast.timer);
+
+  showToast.timer = setTimeout(() => {
     element.classList.remove("show");
-  }, 1800);
+  }, 2200);
 }
 
-/* =========================================================
-   NAVIGATION
-========================================================= */
+function openModal(content) {
+  const modal = $("#modal");
+  const modalContent = $("#modal-content");
 
-function navigate(screen) {
-  currentScreen = screen;
-  render();
+  if (!modal || !modalContent) return;
 
-  window.scrollTo({
-    top: 0,
-    behavior: "instant"
-  });
+  modalContent.innerHTML = content;
+  modal.classList.remove("hidden");
 }
 
-/* =========================================================
-   NAV BAR
-========================================================= */
+function closeModal() {
+  const modal = $("#modal");
 
-function navigation() {
-  if (!state.name) {
-    return "";
+  if (!modal) return;
+
+  modal.classList.add("hidden");
+
+  const content = $("#modal-content");
+
+  if (content) {
+    content.innerHTML = "";
   }
-
-  const items = [
-    ["home", "HOME"],
-    ["city", "CITY"],
-    ["market", "MARKET"],
-    ["company", "COMPANY"],
-    ["analytics", "DATA"],
-    ["more", "MORE"]
-  ];
-
-  return `
-    <nav class="nav">
-
-      ${items.map(item => `
-        <button
-          class="${currentScreen === item[0] ? "active" : ""}"
-          onclick="navigate('${item[0]}')"
-        >
-          <div class="nav-dot"></div>
-          ${item[1]}
-        </button>
-      `).join("")}
-
-    </nav>
-  `;
-}
-
-/* =========================================================
-   TOP BAR
-========================================================= */
-
-function topBar() {
-  return `
-    <div class="top">
-
-      <div class="brand">
-        BUSINESS DISTRICT
-      </div>
-
-      <div class="day">
-        OPERATING DAY
-        <strong>${state.day}</strong>
-      </div>
-
-    </div>
-  `;
-}
-
-/* =========================================================
-   MAIN RENDER
-========================================================= */
-
-function render() {
-  const app = document.getElementById("app");
-
-  let content = "";
-
-  if (!state.name) {
-    content = currentScreen === "onboarding"
-      ? onboardingView()
-      : startView();
-  } else {
-
-    switch (currentScreen) {
-
-      case "home":
-        content = homeView();
-        break;
-
-      case "city":
-        content = cityView();
-        break;
-
-      case "market":
-        content = marketView();
-        break;
-
-      case "company":
-        content = companyView();
-        break;
-
-      case "analytics":
-        content = analyticsView();
-        break;
-
-      case "buildings":
-        content = buildingsView();
-        break;
-
-      case "marketing":
-        content = marketingView();
-        break;
-
-      case "bank":
-        content = bankView();
-        break;
-
-      case "events":
-        content = eventsView();
-        break;
-
-      case "achievements":
-        content = achievementsView();
-        break;
-
-      case "settings":
-        content = settingsView();
-        break;
-
-      case "more":
-      default:
-        content = moreView();
-        break;
-    }
-  }
-
-  app.innerHTML = content + navigation();
 }
 
 /* =========================================================
    START
-========================================================= */
+   ========================================================= */
 
-function startView() {
-  return `
-    <main class="shell">
+function renderStartScreen() {
+  const hasSave = Boolean(localStorage.getItem(SAVE_KEY));
 
-      <div class="hero">
+  document.body.innerHTML = `
+    <div id="app">
 
-        <div class="brand">
-          BUSINESS DISTRICT / 02
-        </div>
+      <main>
+        <section class="hero">
 
-        <h1>
-          BUILD<br>
-          SOMETHING.
-        </h1>
-
-        <p>
-          Start small. Think bigger.
-          Build a company, survive the market
-          and turn one location into an empire.
-        </p>
-
-      </div>
-
-      <button
-        class="primary"
-        onclick="openOnboarding()"
-      >
-        CREATE COMPANY
-      </button>
-
-      <div class="section">
-
-        <div class="panel">
-
-          <div class="row">
-            <span class="tiny">
-              NO ACCOUNT
-            </span>
-
-            <span class="tiny">
-              LOCAL SAVE
-            </span>
+          <div class="hero-kicker">
+            СИМУЛЯТОР БИЗНЕСА
           </div>
 
-          <p class="muted">
-            Your company is saved directly
-            on this device.
+          <h1>
+            BUILD<br>
+            SOMETHING.
+          </h1>
+
+          <p>
+            Начни с 10 000 ₴.
+            Построй компанию с нуля,
+            управляй людьми, деньгами,
+            маркетингом и рисками.
           </p>
 
-        </div>
+          <div class="start-actions">
 
-      </div>
+            ${
+              hasSave
+                ? `
+                  <button class="btn btn-primary"
+                    data-action="continue">
+                    ПРОДОЛЖИТЬ
+                  </button>
 
-    </main>
-  `;
-}
+                  <button class="btn"
+                    data-action="new-game">
+                    НОВАЯ ИГРА
+                  </button>
 
-/* =========================================================
-   ONBOARDING
-========================================================= */
+                  <button class="btn btn-danger"
+                    data-action="delete-save">
+                    УДАЛИТЬ СОХРАНЕНИЕ
+                  </button>
+                `
+                : `
+                  <button class="btn btn-primary"
+                    data-action="new-game">
+                    СОЗДАТЬ КОМПАНИЮ
+                  </button>
+                `
+            }
 
-function openOnboarding() {
-  currentScreen = "onboarding";
-  render();
-}
-
-function onboardingView() {
-  return `
-    <main class="shell">
-
-      ${topBar()}
-
-      <div class="hero">
-
-        <div class="tiny">
-          01 / FOUNDATION
-        </div>
-
-        <h1>
-          YOUR<br>
-          COMPANY.
-        </h1>
-
-      </div>
-
-      <div class="form">
-
-        <div class="field">
-          <label>Company name</label>
-          <input
-            id="company-name"
-            maxlength="22"
-            placeholder="NORTH"
-          >
-        </div>
-
-        <div class="field">
-          <label>Industry</label>
-
-          <select id="industry">
-
-            ${Object.keys(INDUSTRIES).map(industry => `
-              <option value="${industry}">
-                ${industry}
-              </option>
-            `).join("")}
-
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Strategy</label>
-
-          <select id="strategy">
-
-            <option value="premium">
-              PREMIUM
-            </option>
-
-            <option value="balanced" selected>
-              BALANCED
-            </option>
-
-            <option value="low-cost">
-              LOW COST
-            </option>
-
-            <option value="innovative">
-              INNOVATIVE
-            </option>
-
-          </select>
-
-        </div>
-
-        <div class="field">
-
-          <label>First district</label>
-
-          <select id="district">
-
-            ${Object.keys(DISTRICTS).map(district => `
-              <option value="${district}">
-                ${district}
-              </option>
-            `).join("")}
-
-          </select>
-
-        </div>
-
-        <button
-          class="primary"
-          onclick="createCompany()"
-        >
-          START WITH ${money(10000)}
-        </button>
-
-      </div>
-
-    </main>
-  `;
-}
-
-function createCompany() {
-
-  const name =
-    document.getElementById("company-name")
-      .value
-      .trim();
-
-  if (!name) {
-    toast("Enter a company name.");
-    return;
-  }
-
-  state = createEmptyState();
-
-  state.name = name;
-
-  state.industry =
-    document.getElementById("industry").value;
-
-  state.strategy =
-    document.getElementById("strategy").value;
-
-  state.district =
-    document.getElementById("district").value;
-
-  initializeMarket();
-
-  saveState();
-
-  currentScreen = "home";
-
-  render();
-
-  toast("Company created.");
-}
-
-/* =========================================================
-   MARKET INITIALIZATION
-========================================================= */
-
-function initializeMarket() {
-
-  state.market = {};
-
-  Object.keys(INDUSTRIES).forEach(industry => {
-
-    state.market[industry] =
-      Number(
-        (Math.random() * 20 - 10).toFixed(1)
-      );
-
-  });
-}
-
-/* =========================================================
-   HOME
-========================================================= */
-
-function homeView() {
-
-  const last =
-    state.history[state.history.length - 1];
-
-  const revenue =
-    last ? last.revenue : 0;
-
-  const profit =
-    last ? last.profit : 0;
-
-  return `
-    <main class="shell">
-
-      ${topBar()}
-
-      <div class="grid">
-
-        <div class="stat wide">
-          <div class="stat-label">
-            Cash
           </div>
 
-          <div class="stat-value">
-            ${money(state.cash)}
-          </div>
-        </div>
+        </section>
+      </main>
 
-        <div class="stat">
-          <div class="stat-label">
-            Revenue / day
-          </div>
+      <div id="toast" class="toast"></div>
 
-          <div class="stat-value">
-            ${money(revenue)}
-          </div>
-        </div>
+      <div id="modal" class="modal hidden">
+        <div class="modal-backdrop"
+             data-action="close-modal"></div>
 
-        <div class="stat">
-          <div class="stat-label">
-            Profit / day
-          </div>
-
-          <div class="stat-value">
-            ${money(profit)}
-          </div>
-        </div>
-
-        <div class="stat">
-          <div class="stat-label">
-            Customers
-          </div>
-
-          <div class="stat-value">
-            ${Math.round(state.totalCustomers)}
-          </div>
-        </div>
-
-        <div class="stat">
-          <div class="stat-label">
-            Reputation
-          </div>
-
-          <div class="stat-value">
-            ${state.reputation.toFixed(1)}
-          </div>
-        </div>
-
-        <div class="stat wide">
-
-          <div class="stat-label">
-            Company value
-          </div>
-
-          <div class="stat-value">
-            ${money(state.companyValue)}
-          </div>
-
-          <div class="progress">
-            <span
-              style="
-                width:${clamp(
-                  state.companyValue / 5000000 * 100,
-                  0,
-                  100
-                )}%
-              "
-            ></span>
-          </div>
-
-        </div>
-
-      </div>
-
-      <div class="section">
-
-        <div class="section-head">
-
-          <div>
-            <div class="tiny">
-              LIVE PERFORMANCE
-            </div>
-
-            <h2>
-              ${escapeHTML(state.name)}
-            </h2>
-          </div>
-
-          <span class="muted">
-            ${state.industry}
-          </span>
-
-        </div>
-
-        <div class="panel">
-          ${profitChart()}
-        </div>
-
-      </div>
-
-      <div class="section">
-
-        <div class="grid">
+        <div class="modal-box">
 
           <button
-            class="secondary"
-            onclick="navigate('market')"
-          >
-            MANAGE MARKET
+            class="modal-close"
+            data-action="close-modal">
+            ×
           </button>
 
-          <button
-            class="secondary"
-            onclick="navigate('company')"
-          >
-            MANAGE TEAM
-          </button>
+          <div id="modal-content"></div>
 
         </div>
-
-        <button
-          class="primary"
-          onclick="endDay()"
-        >
-          END DAY →
-        </button>
-
       </div>
-
-      ${
-        state.event
-          ? eventPanel()
-          : ""
-      }
-
-    </main>
-  `;
-}
-
-/* =========================================================
-   PROFIT CHART
-========================================================= */
-
-function profitChart() {
-
-  const values =
-    state.history
-      .slice(-14)
-      .map(item => Math.max(0, item.profit));
-
-  if (!values.length) {
-    return `
-      <div class="empty">
-        Your first operating day
-        will create the first data point.
-      </div>
-    `;
-  }
-
-  const max =
-    Math.max(...values, 1);
-
-  return `
-    <div class="spark">
-
-      ${values.map((value, index) => {
-
-        const height =
-          Math.max(
-            5,
-            value / max * 100
-          );
-
-        return `
-          <i
-            class="spark-bar ${
-              index === values.length - 1
-                ? "active"
-                : ""
-            }"
-            style="height:${height}%"
-          ></i>
-        `;
-
-      }).join("")}
 
     </div>
   `;
 }
 
 /* =========================================================
-   CITY
-========================================================= */
+   СОЗДАНИЕ КОМПАНИИ
+   ========================================================= */
 
-function cityView() {
+function openCompanyCreation() {
 
-  return `
-    <main class="shell">
+  openModal(`
 
-      ${topBar()}
+    <div class="hero-kicker">
+      НОВАЯ КОМПАНИЯ
+    </div>
 
-      <div class="hero">
+    <h2 class="modal-title">
+      С чего начнём?
+    </h2>
 
-        <div class="tiny">
-          THE CITY / ${state.district}
-        </div>
+    <p class="modal-text">
+      У тебя есть 10 000 ₴ стартового капитала.
+      Выбирай отрасль и стратегию внимательно.
+    </p>
 
-        <h1>
-          WHERE<br>
-          YOU GROW.
-        </h1>
+    <form id="company-form" class="form">
 
-        <p>
-          Districts affect rent, traffic,
-          demand and competition.
-        </p>
+      <div class="field">
+
+        <label>
+          Название компании
+        </label>
+
+        <input
+          id="new-company-name"
+          maxlength="30"
+          placeholder="Например: North Studio"
+          required
+        >
 
       </div>
 
-      <div class="city-map">
+      <div class="field">
 
-        ${Object.entries(DISTRICTS)
-          .map(([name, district]) => `
+        <label>
+          Отрасль
+        </label>
 
-            <div
-              class="district ${
-                state.district === name
-                  ? "owned"
-                  : ""
-              }"
-            >
+        <div class="choice-grid">
 
-              <div>
-
-                <h3>
-                  ${name}
-                </h3>
-
-                <div class="metric">
-                  RENT ${money(district.rent)} / DAY
-                </div>
-
-              </div>
-
-              <div>
-
-                <div class="metric">
-                  TRAFFIC
-                  ${(district.traffic * 100).toFixed(0)}
-                  · DEMAND
-                  ${(district.demand * 100).toFixed(0)}
-                  · COMP
-                  ${(district.competition * 100).toFixed(0)}
-                </div>
-
+          ${
+            Object.entries(INDUSTRIES)
+              .map(([key, industry]) => `
                 <button
-                  onclick="moveDistrict('${name}')"
+                  type="button"
+                  class="choice ${
+                    key === "COFFEE"
+                      ? "active"
+                      : ""
+                  }"
+                  data-industry="${key}"
                 >
-                  ${
-                    state.district === name
-                      ? "CURRENT"
-                      : "MOVE"
-                  }
+
+                  <strong>
+                    ${industry.name}
+                  </strong>
+
+                  <small>
+                    Средняя цена:
+                    ${formatMoney(industry.averagePrice)}
+                  </small>
+
                 </button>
+              `)
+              .join("")
+          }
 
-              </div>
+        </div>
 
+      </div>
+
+      <div class="field">
+
+        <label>
+          Стратегия
+        </label>
+
+        <div class="choice-grid">
+
+          ${
+            Object.entries(STRATEGIES)
+              .map(([key, strategy]) => `
+                <button
+                  type="button"
+                  class="choice ${
+                    key === "BALANCED"
+                      ? "active"
+                      : ""
+                  }"
+                  data-strategy="${key}"
+                >
+
+                  <strong>
+                    ${strategy.name}
+                  </strong>
+
+                  <small>
+                    ${
+                      key === "PREMIUM"
+                        ? "Высокая цена и маржа."
+                        : key === "LOW_COST"
+                        ? "Много клиентов."
+                        : key === "INNOVATIVE"
+                        ? "Репутация и развитие."
+                        : "Универсальный подход."
+                    }
+                  </small>
+
+                </button>
+              `)
+              .join("")
+          }
+
+        </div>
+
+      </div>
+
+      <div class="field">
+
+        <label>
+          Район
+        </label>
+
+        <select id="new-company-district">
+
+          ${
+            Object.entries(DISTRICTS)
+              .map(([key, district]) => `
+                <option value="${key}">
+                  ${district.name}
+                </option>
+              `)
+              .join("")
+          }
+
+        </select>
+
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary">
+
+        НАЧАТЬ БИЗНЕС
+
+      </button>
+
+    </form>
+  `);
+
+  let selectedIndustry = "COFFEE";
+  let selectedStrategy = "BALANCED";
+
+  $$("[data-industry]").forEach(button => {
+
+    button.addEventListener("click", () => {
+
+      selectedIndustry =
+        button.dataset.industry;
+
+      $$("[data-industry]")
+        .forEach(item =>
+          item.classList.remove("active")
+        );
+
+      button.classList.add("active");
+    });
+
+  });
+
+  $$("[data-strategy]").forEach(button => {
+
+    button.addEventListener("click", () => {
+
+      selectedStrategy =
+        button.dataset.strategy;
+
+      $$("[data-strategy]")
+        .forEach(item =>
+          item.classList.remove("active")
+        );
+
+      button.classList.add("active");
+    });
+
+  });
+
+  $("#company-form")
+    .addEventListener("submit", event => {
+
+      event.preventDefault();
+
+      const name =
+        $("#new-company-name")
+          .value
+          .trim();
+
+      const district =
+        $("#new-company-district")
+          .value;
+
+      if (!name) return;
+
+      state =
+        createDefaultState();
+
+      state.initialized = true;
+
+      state.company.name = name;
+
+      state.company.industry =
+        selectedIndustry;
+
+      state.company.strategy =
+        selectedStrategy;
+
+      state.company.district =
+        district;
+
+      state.company.priceMultiplier =
+        STRATEGIES[selectedStrategy].price;
+
+      state.company.foundedDay = 1;
+
+      saveGame();
+
+      closeModal();
+
+      renderGame();
+
+      showToast("Компания создана");
+    });
+}
+
+/* =========================================================
+   ОСНОВНОЙ РЕНДЕР
+   ========================================================= */
+
+function renderGame() {
+
+  const screen =
+    state.ui.screen || "home";
+
+  const content =
+    getScreenHTML(screen);
+
+  document.body.innerHTML = `
+
+    <div id="app">
+
+      <header class="topbar">
+
+        <div class="topbar-row">
+
+          <div>
+
+            <div class="brand">
+              DISTRICT
             </div>
 
-          `)
-          .join("")}
+            <div class="day-label">
+              День ${state.day}
+            </div>
 
-      </div>
-
-    </main>
-  `;
-}
-
-/* =========================================================
-   MARKET
-========================================================= */
-
-function marketView() {
-
-  return `
-    <main class="shell">
-
-      ${topBar()}
-
-      <div class="hero">
-
-        <div class="tiny">
-          MARKET / ${state.industry}
-        </div>
-
-        <h1>
-          READ<br>
-          THE ROOM.
-        </h1>
-
-      </div>
-
-      <div class="list">
-
-        ${Object.keys(INDUSTRIES)
-          .map(industry => {
-
-            const trend =
-              state.market[industry] || 0;
-
-            const width =
-              clamp(
-                50 + trend,
-                5,
-                95
-              );
-
-            return `
-              <div class="item">
-
-                <div class="row">
-
-                  <div class="item-title">
-                    ${industry}
-                  </div>
-
-                  <div class="mono">
-                    ${
-                      trend >= 0
-                        ? "+"
-                        : ""
-                    }${trend.toFixed(1)}%
-                  </div>
-
-                </div>
-
-                <div class="item-meta">
-                  Average price
-                  ${money(INDUSTRIES[industry].price)}
-                  · Demand
-                  ${INDUSTRIES[industry].demand}
-                </div>
-
-                <div class="progress">
-                  <span
-                    style="width:${width}%"
-                  ></span>
-                </div>
-
-              </div>
-            `;
-
-          })
-          .join("")}
-
-      </div>
-
-      <div class="section">
-
-        <div class="panel">
-
-          <div class="tiny">
-            YOUR BUSINESS
           </div>
 
-          <div
-            class="row"
-            style="margin-top:8px"
-          >
-
-            <strong>
-              ${state.industry}
-            </strong>
-
-            <span class="muted">
-              ${state.strategy}
-            </span>
-
+          <div class="badge accent">
+            УРОВЕНЬ ${state.company.level}
           </div>
 
         </div>
 
+      </header>
+
+      <main>
+        ${content}
+      </main>
+
+      ${renderBottomNavigation()}
+
+      <div id="toast"
+        class="toast">
       </div>
 
-    </main>
+      <div id="modal"
+        class="modal hidden">
+
+        <div
+          class="modal-backdrop"
+          data-action="close-modal">
+        </div>
+
+        <div class="modal-box">
+
+          <button
+            class="modal-close"
+            data-action="close-modal">
+            ×
+          </button>
+
+          <div id="modal-content"></div>
+
+        </div>
+
+      </div>
+
+    </div>
   `;
 }
 
-/* =========================================================
-   COMPANY
-========================================================= */
+function getScreenHTML(screen) {
 
-function companyView() {
+  switch (screen) {
+
+    case "city":
+      return renderCity();
+
+    case "market":
+      return renderMarket();
+
+    case "company":
+      return renderCompany();
+
+    case "staff":
+      return renderStaff();
+
+    case "marketing":
+      return renderMarketing();
+
+    case "bank":
+      return renderBank();
+
+    case "buildings":
+      return renderBuildings();
+
+    case "events":
+      return renderEvents();
+
+    case "analytics":
+      return renderAnalytics();
+
+    case "achievements":
+      return renderAchievements();
+
+    case "home":
+    default:
+      return renderHome();
+  }
+}
+
+/* =========================================================
+   ГЛАВНАЯ
+   ========================================================= */
+
+function renderHome() {
+
+  const c = state.company;
+
+  const lastDay =
+    state.analytics.at(-1);
 
   return `
-    <main class="shell">
 
-      ${topBar()}
+    <section class="company-header">
 
-      <div class="hero">
-
-        <div class="tiny">
-          COMPANY / ${escapeHTML(state.name)}
-        </div>
-
-        <h1>
-          PEOPLE<br>
-          + ASSETS.
-        </h1>
-
+      <div class="hero-kicker">
+        ${INDUSTRIES[c.industry].name}
       </div>
 
-      <div class="tabs">
-
-        <button class="active">
-          TEAM
-        </button>
-
-        <button
-          onclick="navigate('buildings')"
-        >
-          BUILDINGS
-        </button>
-
-        <button
-          onclick="navigate('marketing')"
-        >
-          MARKETING
-        </button>
-
-        <button
-          onclick="navigate('bank')"
-        >
-          BANK
-        </button>
-
+      <div class="company-name">
+        ${escapeHTML(c.name)}
       </div>
+
+      <div class="company-industry">
+        ${STRATEGIES[c.strategy].name}
+        ·
+        ${DISTRICTS[c.district].name}
+      </div>
+
+    </section>
+
+    <section class="stats-grid">
+
+      ${stat(
+        "КАПИТАЛ",
+        formatMoney(c.cash),
+        c.cash >= 0
+          ? "accent"
+          : "red"
+      )}
+
+      ${stat(
+        "ВЫРУЧКА",
+        formatMoney(c.totalRevenue)
+      )}
+
+      ${stat(
+        "ПРИБЫЛЬ",
+        formatMoney(c.totalProfit),
+        c.totalProfit >= 0
+          ? "green"
+          : "red"
+      )}
+
+      ${stat(
+        "КЛИЕНТЫ",
+        formatNumber(c.totalCustomers)
+      )}
+
+      ${stat(
+        "РЕПУТАЦИЯ",
+        `${Math.round(c.reputation)}/100`,
+        "accent"
+      )}
+
+      ${stat(
+        "СТОИМОСТЬ",
+        formatMoney(c.companyValue)
+      )}
+
+      ${stat(
+        "СОТРУДНИКИ",
+        c.employees.length
+      )}
+
+      ${stat(
+        "ОБЪЕКТЫ",
+        c.buildings.length
+      )}
+
+    </section>
+
+    <section class="section">
 
       <div class="section-head">
 
-        <h2>
-          STAFF / ${state.staff.length}
+        <h2 class="section-title">
+          Последний день
         </h2>
 
-        <button
-          class="secondary"
-          onclick="hireEmployee()"
-        >
-          HIRE
-        </button>
+        <span class="section-note">
+          Финансовый результат
+        </span>
 
       </div>
 
-      <div class="list">
+      <div class="card">
 
         ${
-          state.staff.length
+          lastDay
+            ? `
+              <div class="card-row">
 
-            ? state.staff.map((employee, index) => `
+                <strong>
+                  Прибыль
+                </strong>
 
-                <div class="item">
+                <strong class="${
+                  lastDay.profit >= 0
+                    ? "positive"
+                    : "negative"
+                }">
 
-                  <div class="row">
+                  ${
+                    lastDay.profit >= 0
+                      ? "+"
+                      : ""
+                  }
 
-                    <div>
+                  ${formatMoney(lastDay.profit)}
 
-                      <div class="item-title">
-                        ${employee.name}
-                      </div>
+                </strong>
 
-                      <div class="item-meta">
-                        ${employee.role}
-                        · ${money(employee.salary)}/day
-                        · EXP ${employee.experience.toFixed(1)}
-                      </div>
+              </div>
 
-                    </div>
+              <div class="card-meta">
 
-                    <button
-                      class="danger"
-                      onclick="fireEmployee(${index})"
-                    >
-                      FIRE
-                    </button>
+                Выручка:
+                ${formatMoney(lastDay.revenue)}
 
-                  </div>
+                ·
 
-                  <div class="progress">
+                Клиенты:
+                ${formatNumber(lastDay.customers)}
 
-                    <span
-                      style="width:${employee.morale}%"
-                    ></span>
-
-                  </div>
-
-                </div>
-
-              `).join("")
-
+              </div>
+            `
             : `
               <div class="empty">
-                No employees yet.
-                Your first good hire can change
-                the entire operation.
+                Первый рабочий день ещё не завершён.
               </div>
             `
         }
 
       </div>
 
-    </main>
+    </section>
+
+    <section class="section">
+
+      ${renderLevelCard()}
+
+    </section>
+
+    <button
+      class="end-day"
+      data-action="end-day">
+
+      ЗАВЕРШИТЬ ДЕНЬ →
+
+    </button>
+  `;
+}
+
+function stat(label, value, className = "") {
+
+  return `
+
+    <div class="stat">
+
+      <div class="stat-label">
+        ${label}
+      </div>
+
+      <div class="stat-value ${className}">
+        ${value}
+      </div>
+
+    </div>
+  `;
+}
+
+function renderLevelCard() {
+
+  const level =
+    state.company.level;
+
+  const current =
+    state.company.experience;
+
+  const required =
+    level * 100;
+
+  const percent =
+    clamp(
+      current / required * 100,
+      0,
+      100
+    );
+
+  return `
+
+    <div class="card">
+
+      <div class="card-row">
+
+        <strong>
+          Развитие компании
+        </strong>
+
+        <span class="muted">
+          ${current}/${required} XP
+        </span>
+
+      </div>
+
+      <div class="progress">
+
+        <span
+          style="width:${percent}%">
+        </span>
+
+      </div>
+
+      <div class="card-meta">
+        Получай XP за выручку и развитие бизнеса.
+      </div>
+
+    </div>
   `;
 }
 
 /* =========================================================
-   ANALYTICS
-========================================================= */
+   ГОРОД
+   ========================================================= */
 
-function analyticsView() {
+function renderCity() {
 
-  const history =
-    state.history.slice(-30);
-
-  const revenue =
-    history.reduce(
-      (sum, item) => sum + item.revenue,
-      0
-    );
-
-  const expenses =
-    history.reduce(
-      (sum, item) => sum + item.expenses,
-      0
-    );
-
-  const profit =
-    history.reduce(
-      (sum, item) => sum + item.profit,
-      0
-    );
-
-  const customers =
-    history.reduce(
-      (sum, item) => sum + item.customers,
-      0
-    );
+  const current =
+    DISTRICTS[state.company.district];
 
   return `
-    <main class="shell">
 
-      ${topBar()}
+    <h1 class="screen-title">
+      Город
+    </h1>
 
-      <div class="hero">
+    <p class="screen-subtitle">
+      Выбери район для своего бизнеса.
+    </p>
 
-        <div class="tiny">
-          ANALYTICS / LAST 30 DAYS
-        </div>
+    <section class="section">
 
-        <h1>
-          NUMBERS<br>
-          DON'T LIE.
-        </h1>
+      <div class="map">
+
+        ${
+          Object.entries(DISTRICTS)
+            .map(([key, district]) => `
+
+              <button
+                class="
+                  district
+                  ${
+                    key === "CENTRAL"
+                      ? "central"
+                      : ""
+                  }
+                  ${
+                    key === state.company.district
+                      ? "selected"
+                      : ""
+                  }
+                "
+                data-action="select-district"
+                data-district="${key}"
+              >
+
+                <div class="district-name">
+                  ${district.name}
+                </div>
+
+                <div class="district-code">
+                  ${district.code}
+                </div>
+
+                <div class="district-stats">
+
+                  <div class="mini-stat">
+                    <b>
+                      ${Math.round(
+                        district.demand * 100
+                      )}%
+                    </b>
+                    <span>спрос</span>
+                  </div>
+
+                  <div class="mini-stat">
+                    <b>
+                      ${Math.round(
+                        district.traffic * 100
+                      )}%
+                    </b>
+                    <span>трафик</span>
+                  </div>
+
+                  <div class="mini-stat">
+                    <b>
+                      ${Math.round(
+                        district.competition * 100
+                      )}%
+                    </b>
+                    <span>конкуренция</span>
+                  </div>
+
+                  <div class="mini-stat">
+                    <b>
+                      ${Math.round(
+                        district.rent * 100
+                      )}%
+                    </b>
+                    <span>аренда</span>
+                  </div>
+
+                </div>
+
+              </button>
+
+            `)
+            .join("")
+        }
 
       </div>
 
-      <div class="list">
+    </section>
 
-        ${[
-          ["Revenue", revenue],
-          ["Expenses", expenses],
-          ["Profit", profit],
-          ["Customers", Math.round(customers)],
-          ["Cash", state.cash],
-          ["Company Value", state.companyValue]
-        ].map(item => `
+    <section class="section">
 
-          <div class="item">
+      <div class="card">
 
-            <div class="row">
+        <div class="hero-kicker">
+          ТЕКУЩИЙ РАЙОН
+        </div>
 
-              <span class="muted">
-                ${item[0]}
-              </span>
+        <h2>
+          ${current.name}
+        </h2>
 
-              <span class="mono">
-                ${
-                  item[0] === "Customers"
-                    ? item[1].toLocaleString()
-                    : money(item[1])
-                }
-              </span>
+        <div class="card-meta">
 
+          Спрос:
+          ${Math.round(current.demand * 100)}%
+
+          ·
+
+          Трафик:
+          ${Math.round(current.traffic * 100)}%
+
+          ·
+
+          Конкуренция:
+          ${Math.round(current.competition * 100)}%
+
+        </div>
+
+      </div>
+
+    </section>
+  `;
+}
+
+/* =========================================================
+   РЫНОК
+   ========================================================= */
+
+function renderMarket() {
+
+  const industry =
+    INDUSTRIES[state.company.industry];
+
+  const market =
+    state.market[state.company.industry];
+
+  const currentPrice =
+    industry.averagePrice *
+    state.company.priceMultiplier;
+
+  const trendClass =
+    market.trend > 0
+      ? "up"
+      : market.trend < 0
+      ? "down"
+      : "flat";
+
+  return `
+
+    <h1 class="screen-title">
+      Рынок
+    </h1>
+
+    <p class="screen-subtitle">
+      Следи за спросом и управляй ценой.
+    </p>
+
+    <section class="section">
+
+      <div class="card">
+
+        <div class="market-row">
+
+          <div>
+
+            <div class="card-title">
+              ${industry.name}
+            </div>
+
+            <div class="card-meta">
+              Конкуренция:
+              ${market.competition}%
             </div>
 
           </div>
 
-        `).join("")}
+          <div class="trend ${trendClass}">
 
-      </div>
+            ${
+              market.trend > 0
+                ? "▲"
+                : market.trend < 0
+                ? "▼"
+                : "—"
+            }
 
-      <div class="section">
+            ${Math.abs(
+              market.trend
+            ).toFixed(1)}%
 
-        <div class="panel">
-
-          <div class="tiny">
-            PROFIT HISTORY
           </div>
 
-          ${profitChart()}
+        </div>
+
+        ${renderSparkline(
+          market.history
+        )}
+
+        <div class="stats-grid">
+
+          ${stat(
+            "СПРОС",
+            `${Math.round(
+              market.demand * 100
+            )}%`
+          )}
+
+          ${stat(
+            "СРЕДНЯЯ ЦЕНА",
+            formatMoney(
+              industry.averagePrice
+            )
+          )}
 
         </div>
 
-      </div>
+        <div class="price-control">
 
-    </main>
-  `;
-}
-
-/* =========================================================
-   MORE
-========================================================= */
-
-function moreView() {
-
-  const options = [
-    [
-      "buildings",
-      "BUILDINGS",
-      "Buy locations and increase capacity."
-    ],
-    [
-      "marketing",
-      "MARKETING",
-      "Create campaigns that shift demand."
-    ],
-    [
-      "bank",
-      "BANK",
-      "Finance growth without destroying cash flow."
-    ],
-    [
-      "events",
-      "EVENTS",
-      "Review decisions and business events."
-    ],
-    [
-      "achievements",
-      "ACHIEVEMENTS",
-      `${state.achievements.length} / ${ACHIEVEMENTS.length} unlocked.`
-    ],
-    [
-      "settings",
-      "SETTINGS",
-      "Save management and reset."
-    ]
-  ];
-
-  return `
-    <main class="shell">
-
-      ${topBar()}
-
-      <div class="hero">
-
-        <div class="tiny">
-          OPERATIONS
-        </div>
-
-        <h1>
-          RUN<br>
-          THE BUSINESS.
-        </h1>
-
-      </div>
-
-      <div class="list">
-
-        ${options.map(option => `
-
-          <button
-            class="item"
-            style="text-align:left;color:white"
-            onclick="navigate('${option[0]}')"
+          <input
+            id="price-input"
+            type="number"
+            min="1"
+            value="${Math.round(
+              currentPrice
+            )}"
           >
 
-            <div class="item-title">
-              ${option[1]}
-            </div>
+          <button
+            class="btn btn-small btn-primary"
+            data-action="change-price">
 
-            <div class="item-meta">
-              ${option[2]}
-            </div>
+            УСТАНОВИТЬ
 
           </button>
 
-        `).join("")}
+        </div>
 
       </div>
 
-    </main>
+    </section>
   `;
 }
 
-/* =========================================================
-   BUILDINGS
-========================================================= */
+function renderSparkline(values) {
 
-function buildingsView() {
-
-  return `
-    <main class="shell">
-
-      ${topBar()}
-
-      <div class="hero">
-
-        <div class="tiny">
-          OPERATIONS
-        </div>
-
-        <h1>
-          BUILD<br>
-          THE BASE.
-        </h1>
-
-      </div>
-
-      <div class="list">
-
-        ${Object.entries(BUILDINGS)
-          .map(([key, building]) => `
-
-            <div class="item">
-
-              <div class="row">
-
-                <div>
-
-                  <div class="item-title">
-                    ${building.name}
-                  </div>
-
-                  <div class="item-meta">
-                    ${money(building.price)}
-                    · Rent
-                    ${money(building.rent)}/day
-                    · Capacity ×${building.capacity}
-                  </div>
-
-                </div>
-
-                <button
-                  class="secondary"
-                  onclick="buyBuilding('${key}')"
-                >
-                  BUY
-                </button>
-
-              </div>
-
-            </div>
-
-          `)
-          .join("")}
-
-      </div>
-
-      <div class="section">
-
-        <div class="section-head">
-
-          <h2>
-            OWNED / ${state.buildings.length}
-          </h2>
-
-        </div>
-
-        <div class="list">
-
-          ${
-            state.buildings.length
-
-              ? state.buildings.map(building => `
-
-                  <div class="item">
-
-                    <div class="row">
-
-                      <span>
-                        ${BUILDINGS[building.type].name}
-                      </span>
-
-                      <span class="mono">
-                        ${building.district}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                `).join("")
-
-              : `
-                <div class="empty">
-                  No locations yet.
-                </div>
-              `
-          }
-
-        </div>
-
-      </div>
-
-    </main>
-  `;
-}
-
-/* =========================================================
-   MARKETING
-========================================================= */
-
-function marketingView() {
-
-  return `
-    <main class="shell">
-
-      ${topBar()}
-
-      <div class="hero">
-
-        <div class="tiny">
-          DEMAND ENGINE
-        </div>
-
-        <h1>
-          CREATE<br>
-          DEMAND.
-        </h1>
-
-      </div>
-
-      <div class="list">
-
-        ${Object.entries(MARKETING)
-          .map(([key, campaign]) => `
-
-            <div class="item">
-
-              <div class="row">
-
-                <div>
-
-                  <div class="item-title">
-                    ${campaign.name}
-                  </div>
-
-                  <div class="item-meta">
-                    ${money(campaign.cost)}
-                    · Demand ×${campaign.effect}
-                    · ${campaign.days} days
-                  </div>
-
-                </div>
-
-                <button
-                  class="secondary"
-                  onclick="launchMarketing('${key}')"
-                >
-                  LAUNCH
-                </button>
-
-              </div>
-
-            </div>
-
-          `)
-          .join("")}
-
-      </div>
-
-    </main>
-  `;
-}
-
-/* =========================================================
-   BANK
-========================================================= */
-
-function bankView() {
-
-  return `
-    <main class="shell">
-
-      ${topBar()}
-
-      <div class="hero">
-
-        <div class="tiny">
-          FINANCE
-        </div>
-
-        <h1>
-          USE<br>
-          CAPITAL.
-        </h1>
-
-      </div>
-
-      <div class="list">
-
-        ${[5000, 10000, 25000, 50000]
-          .map(amount => `
-
-            <div class="item">
-
-              <div class="row">
-
-                <div>
-
-                  <div class="item-title">
-                    ${money(amount)} loan
-                  </div>
-
-                  <div class="item-meta">
-                    5% total interest · 20 days
-                  </div>
-
-                </div>
-
-                <button
-                  class="secondary"
-                  onclick="takeLoan(${amount})"
-                >
-                  TAKE
-                </button>
-
-              </div>
-
-            </div>
-
-          `)
-          .join("")}
-
-      </div>
-
-      <div class="section">
-
-        <div class="section-head">
-          <h2>
-            ACTIVE DEBT
-          </h2>
-        </div>
-
-        <div class="list">
-
-          ${
-            state.loans.length
-
-              ? state.loans.map((loan, index) => `
-
-                  <div class="item">
-
-                    <div class="row">
-
-                      <span>
-                        ${money(loan.remaining)}
-                      </span>
-
-                      <button
-                        class="secondary"
-                        onclick="payLoan(${index})"
-                      >
-                        PAY
-                      </button>
-
-                    </div>
-
-                    <div class="item-meta">
-                      ${loan.days} days remaining
-                    </div>
-
-                  </div>
-
-                `).join("")
-
-              : `
-                <div class="empty">
-                  No active debt.
-                </div>
-              `
-          }
-
-        </div>
-
-      </div>
-
-    </main>
-  `;
-}
-
-/* =========================================================
-   EVENTS
-========================================================= */
-
-function eventPanel() {
-
-  if (!state.event) {
+  if (!values || values.length < 2) {
     return "";
   }
 
+  const min =
+    Math.min(...values);
+
+  const max =
+    Math.max(...values);
+
+  const range =
+    max - min || 1;
+
+  const points =
+    values
+      .map((value, index) => {
+
+        const x =
+          index /
+          (values.length - 1) *
+          100;
+
+        const y =
+          90 -
+          ((value - min) / range) *
+          75;
+
+        return `${x},${y}`;
+
+      })
+      .join(" ");
+
   return `
-    <div class="section">
 
-      <div class="panel event">
+    <svg
+      class="chart"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none">
 
-        <div class="tiny">
-          DECISION REQUIRED
+      <polyline
+        points="${points}"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+      />
+
+    </svg>
+  `;
+}
+
+function changePrice() {
+
+  const input =
+    $("#price-input");
+
+  if (!input) return;
+
+  const price =
+    Number(input.value);
+
+  const industry =
+    INDUSTRIES[state.company.industry];
+
+  if (!price || price <= 0) {
+    showToast("Введите корректную цену");
+    return;
+  }
+
+  state.company.priceMultiplier =
+    clamp(
+      price / industry.averagePrice,
+      0.5,
+      2
+    );
+
+  saveGame();
+
+  renderGame();
+
+  showToast("Цена обновлена");
+}
+
+/* =========================================================
+   КОМПАНИЯ
+   ========================================================= */
+
+function renderCompany() {
+
+  const c =
+    state.company;
+
+  return `
+
+    <h1 class="screen-title">
+      Компания
+    </h1>
+
+    <p class="screen-subtitle">
+      Профиль и показатели бизнеса.
+    </p>
+
+    <section class="section">
+
+      <div class="card">
+
+        <div class="hero-kicker">
+          КОМПАНИЯ
         </div>
 
-        <h3>
-          ${state.event.title}
-        </h3>
+        <div class="company-name">
+          ${escapeHTML(c.name)}
+        </div>
 
-        <p>
-          ${state.event.text}
-        </p>
+        <div class="company-industry">
+          ${INDUSTRIES[c.industry].name}
+        </div>
 
-        <div class="choices">
+      </div>
 
-          ${state.event.choices.map(
-            (choice, index) => `
+    </section>
 
-              <button
-                onclick="chooseEvent(${index})"
-              >
-                ${choice.title}
-              </button>
+    <section class="section">
 
+      <div class="stats-grid">
+
+        ${stat(
+          "ОТРАСЛЬ",
+          INDUSTRIES[c.industry].short
+        )}
+
+        ${stat(
+          "СТРАТЕГИЯ",
+          STRATEGIES[c.strategy].name
+        )}
+
+        ${stat(
+          "РАЙОН",
+          DISTRICTS[c.district].name
+        )}
+
+        ${stat(
+          "УРОВЕНЬ",
+          c.level
+        )}
+
+        ${stat(
+          "РЕПУТАЦИЯ",
+          `${Math.round(c.reputation)}/100`
+        )}
+
+        ${stat(
+          "ВЫРУЧКА",
+          formatMoney(c.totalRevenue)
+        )}
+
+        ${stat(
+          "ПРИБЫЛЬ",
+          formatMoney(c.totalProfit)
+        )}
+
+        ${stat(
+          "СТОИМОСТЬ",
+          formatMoney(c.companyValue)
+        )}
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      ${renderLevelCard()}
+
+    </section>
+  `;
+}
+
+/* =========================================================
+   СОТРУДНИКИ
+   ========================================================= */
+
+function renderStaff() {
+
+  return `
+
+    <h1 class="screen-title">
+      Сотрудники
+    </h1>
+
+    <p class="screen-subtitle">
+      Команда влияет на эффективность компании.
+    </p>
+
+    <section class="section">
+
+      <div class="section-head">
+
+        <h2 class="section-title">
+          Твоя команда
+        </h2>
+
+        <span class="section-note">
+          ${state.company.employees.length}
+          человек
+        </span>
+
+      </div>
+
+      <div class="list">
+
+        ${
+          state.company.employees.length
+            ? state.company.employees
+                .map(renderEmployee)
+                .join("")
+            : `
+              <div class="empty">
+                Пока никто не работает в компании.
+              </div>
             `
-          ).join("")}
+        }
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      <div class="section-head">
+
+        <h2 class="section-title">
+          Найм
+        </h2>
+
+      </div>
+
+      <div class="list">
+
+        ${
+          Object.entries(STAFF)
+            .map(([key, role]) => `
+
+              <div class="card">
+
+                <div class="card-row">
+
+                  <div>
+
+                    <div class="card-title">
+                      ${role.name}
+                    </div>
+
+                    <div class="card-meta">
+
+                      Зарплата:
+                      ${formatMoney(role.salary)}
+                      / день
+
+                    </div>
+
+                  </div>
+
+                  <button
+                    class="btn btn-small"
+                    data-action="hire"
+                    data-role="${key}">
+
+                    НАНЯТЬ
+
+                  </button>
+
+                </div>
+
+              </div>
+
+            `)
+            .join("")
+        }
+
+      </div>
+
+    </section>
+  `;
+}
+
+function renderEmployee(employee) {
+
+  const role =
+    STAFF[employee.role];
+
+  return `
+
+    <div class="card">
+
+      <div class="card-row">
+
+        <div>
+
+          <div class="card-title">
+            ${role.name}
+          </div>
+
+          <div class="card-meta">
+
+            Опыт:
+            ${employee.experience}
+
+            ·
+
+            Эффективность:
+            ${employee.efficiency.toFixed(2)}×
+
+            ·
+
+            Мораль:
+            ${employee.morale}%
+
+          </div>
 
         </div>
+
+        <span class="badge">
+          ${employee.efficiency.toFixed(2)}×
+        </span>
+
+      </div>
+
+      <div class="card-actions">
+
+        <button
+          class="btn btn-small"
+          data-action="train"
+          data-id="${employee.id}">
+
+          ОБУЧИТЬ · 400 ₴
+
+        </button>
+
+        <button
+          class="btn btn-small"
+          data-action="promote"
+          data-id="${employee.id}">
+
+          ПОВЫСИТЬ
+
+        </button>
+
+        <button
+          class="btn btn-small btn-danger"
+          data-action="fire"
+          data-id="${employee.id}">
+
+          УВОЛИТЬ
+
+        </button>
 
       </div>
 
@@ -2067,1055 +2228,2338 @@ function eventPanel() {
   `;
 }
 
-function eventsView() {
+function hireEmployee(roleKey) {
 
-  return `
-    <main class="shell">
+  const role =
+    STAFF[roleKey];
 
-      ${topBar()}
+  if (!role) return;
 
-      <div class="hero">
+  const hiringCost =
+    role.salary * 2;
 
-        <div class="tiny">
-          OPERATIONS
-        </div>
+  if (state.company.cash < hiringCost) {
 
-        <h1>
-          EVENT<br>
-          LOG.
-        </h1>
+    showToast(
+      `Нужно ${formatMoney(hiringCost)}`
+    );
 
-      </div>
+    return;
+  }
 
-      ${
-        state.event
-          ? eventPanel()
-          : `
-            <div class="empty">
-              No decision waiting.
-              End the day to generate
-              the next event.
-            </div>
-          `
-      }
+  state.company.cash -=
+    hiringCost;
 
-    </main>
-  `;
+  state.company.employees.push({
+
+    id:
+      Date.now() +
+      Math.random(),
+
+    role:
+      roleKey,
+
+    experience:
+      1,
+
+    efficiency:
+      role.efficiency,
+
+    morale:
+      100
+
+  });
+
+  saveGame();
+
+  renderGame();
+
+  showToast(
+    `${role.name} принят`
+  );
+}
+
+function trainEmployee(id) {
+
+  const employee =
+    state.company.employees
+      .find(e => String(e.id) === String(id));
+
+  if (!employee) return;
+
+  if (state.company.cash < 400) {
+
+    showToast(
+      "Недостаточно денег"
+    );
+
+    return;
+  }
+
+  state.company.cash -= 400;
+
+  employee.experience += 1;
+
+  employee.efficiency += 0.04;
+
+  employee.morale =
+    clamp(
+      employee.morale + 5,
+      0,
+      100
+    );
+
+  saveGame();
+
+  renderGame();
+
+  showToast(
+    "Сотрудник обучен"
+  );
+}
+
+function promoteEmployee(id) {
+
+  const employee =
+    state.company.employees
+      .find(e => String(e.id) === String(id));
+
+  if (!employee) return;
+
+  if (state.company.cash < 900) {
+
+    showToast(
+      "Нужно 900 ₴"
+    );
+
+    return;
+  }
+
+  state.company.cash -= 900;
+
+  employee.efficiency += 0.08;
+
+  employee.morale =
+    clamp(
+      employee.morale + 10,
+      0,
+      100
+    );
+
+  saveGame();
+
+  renderGame();
+
+  showToast(
+    "Сотрудник повышен"
+  );
+}
+
+function fireEmployee(id) {
+
+  state.company.employees =
+    state.company.employees.filter(
+      employee =>
+        String(employee.id) !== String(id)
+    );
+
+  saveGame();
+
+  renderGame();
+
+  showToast(
+    "Сотрудник уволен"
+  );
 }
 
 /* =========================================================
-   ACHIEVEMENTS
-========================================================= */
+   МАРКЕТИНГ
+   ========================================================= */
 
-function achievementsView() {
+function renderMarketing() {
+
+  const effects =
+    state.company.effects;
 
   return `
-    <main class="shell">
 
-      ${topBar()}
+    <h1 class="screen-title">
+      Маркетинг
+    </h1>
 
-      <div class="hero">
+    <p class="screen-subtitle">
+      Покупай внимание и превращай его в клиентов.
+    </p>
 
-        <div class="tiny">
-          PROGRESSION
-        </div>
-
-        <h1>
-          PROVE<br>
-          IT.
-        </h1>
-
-      </div>
+    <section class="section">
 
       <div class="list">
 
-        ${ACHIEVEMENTS.map(
-          achievement => {
+        ${
+          Object.entries(MARKETING)
+            .map(([key, campaign]) => `
 
-            const unlocked =
-              state.achievements.includes(
-                achievement[0]
-              );
+              <div class="card">
 
-            return `
-              <div
-                class="item"
-                style="
-                  opacity:${unlocked ? 1 : .42}
-                "
-              >
+                <div class="card-row">
 
-                <div class="row">
+                  <div>
 
-                  <span class="item-title">
-                    ${achievement[1]}
-                  </span>
+                    <div class="card-title">
+                      ${campaign.name}
+                    </div>
 
-                  <span class="tiny">
-                    ${
-                      unlocked
-                        ? "UNLOCKED"
-                        : "LOCKED"
-                    }
-                  </span>
+                    <div class="card-meta">
+
+                      ${formatMoney(
+                        campaign.cost
+                      )}
+
+                      ·
+
+                      ×${campaign.multiplier}
+
+                      ·
+
+                      ${campaign.days} дней
+
+                    </div>
+
+                  </div>
+
+                  <button
+                    class="btn btn-small btn-primary"
+                    data-action="marketing"
+                    data-channel="${key}">
+
+                    ЗАПУСТИТЬ
+
+                  </button>
 
                 </div>
 
               </div>
-            `;
-          }
-        ).join("")}
+
+            `)
+            .join("")
+        }
 
       </div>
 
-    </main>
+    </section>
+
+    <section class="section">
+
+      <div class="card">
+
+        <div class="card-row">
+
+          <strong>
+            Активный эффект
+          </strong>
+
+          <span class="badge accent">
+            ×${effects.marketing.toFixed(2)}
+          </span>
+
+        </div>
+
+        <div class="card-meta">
+
+          Осталось:
+          ${effects.marketingDays}
+          дней
+
+        </div>
+
+      </div>
+
+    </section>
   `;
 }
 
-/* =========================================================
-   SETTINGS
-========================================================= */
+function launchMarketing(key) {
 
-function settingsView() {
+  const campaign =
+    MARKETING[key];
+
+  if (!campaign) return;
+
+  if (
+    state.company.cash <
+    campaign.cost
+  ) {
+
+    showToast(
+      "Недостаточно денег"
+    );
+
+    return;
+  }
+
+  state.company.cash -=
+    campaign.cost;
+
+  state.company.effects.marketing =
+    Math.max(
+      state.company.effects.marketing,
+      campaign.multiplier
+    );
+
+  state.company.effects.marketingDays =
+    Math.max(
+      state.company.effects.marketingDays,
+      campaign.days
+    );
+
+  state.company.reputation +=
+    campaign.reputation;
+
+  state.company.campaigns.push({
+    day: state.day,
+    name: campaign.name
+  });
+
+  saveGame();
+
+  renderGame();
+
+  showToast(
+    `${campaign.name} запущена`
+  );
+}
+
+/* =========================================================
+   БАНК
+   ========================================================= */
+
+function renderBank() {
+
+  const loans =
+    state.company.loans;
+
+  const loanOptions = [
+    {
+      amount: 5000,
+      rate: 0.06,
+      days: 15
+    },
+    {
+      amount: 10000,
+      rate: 0.07,
+      days: 20
+    },
+    {
+      amount: 25000,
+      rate: 0.09,
+      days: 30
+    },
+    {
+      amount: 50000,
+      rate: 0.12,
+      days: 45
+    }
+  ];
 
   return `
-    <main class="shell">
 
-      ${topBar()}
+    <h1 class="screen-title">
+      Банк
+    </h1>
 
-      <div class="hero">
+    <p class="screen-subtitle">
+      Кредит ускоряет рост, но создаёт обязательства.
+    </p>
 
-        <div class="tiny">
-          SYSTEM
-        </div>
+    <section class="section">
 
-        <h1>
-          CONTROL<br>
-          ROOM.
-        </h1>
+      <div class="list">
+
+        ${
+          loanOptions
+            .map(loan => {
+
+              const total =
+                Math.round(
+                  loan.amount *
+                  (1 + loan.rate)
+                );
+
+              const payment =
+                Math.ceil(
+                  total /
+                  loan.days
+                );
+
+              return `
+
+                <div class="card">
+
+                  <div class="card-row">
+
+                    <div>
+
+                      <div class="card-title">
+                        ${formatMoney(
+                          loan.amount
+                        )}
+                      </div>
+
+                      <div class="card-meta">
+
+                        Ставка:
+                        ${loan.rate * 100}%
+
+                        ·
+
+                        ${loan.days} дней
+
+                        ·
+
+                        ${formatMoney(
+                          payment
+                        )}/день
+
+                      </div>
+
+                    </div>
+
+                    <button
+                      class="btn btn-small"
+                      data-action="loan"
+                      data-amount="${loan.amount}"
+                      data-rate="${loan.rate}"
+                      data-days="${loan.days}">
+
+                      ВЗЯТЬ
+
+                    </button>
+
+                  </div>
+
+                </div>
+              `;
+            })
+            .join("")
+        }
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      <div class="section-head">
+
+        <h2 class="section-title">
+          Активные кредиты
+        </h2>
 
       </div>
 
       <div class="list">
 
-        <button
-          class="item"
-          onclick="saveState();toast('Saved locally.')"
-        >
-          <div class="item-title">
-            SAVE NOW
-          </div>
+        ${
+          loans.length
+            ? loans.map(loan => `
 
-          <div class="item-meta">
-            Save your current company.
-          </div>
-        </button>
+              <div class="card">
 
-        <button
-          class="item"
-          onclick="resetCompany()"
-        >
-          <div
-            class="item-title"
-            style="color:var(--danger)"
-          >
-            RESET COMPANY
-          </div>
+                <div class="card-row">
 
-          <div class="item-meta">
-            Permanently deletes the local save.
-          </div>
-        </button>
+                  <strong>
+                    ${formatMoney(
+                      loan.remaining
+                    )}
+                  </strong>
+
+                  <span class="badge red">
+                    ДОЛГ
+                  </span>
+
+                </div>
+
+                <div class="card-meta">
+
+                  Платёж:
+                  ${formatMoney(
+                    loan.payment
+                  )}
+
+                  ·
+
+                  Осталось:
+                  ${loan.daysLeft}
+                  дней
+
+                </div>
+
+              </div>
+
+            `).join("")
+            : `
+              <div class="empty">
+                Активных кредитов нет.
+              </div>
+            `
+        }
 
       </div>
 
-    </main>
+    </section>
+  `;
+}
+
+function takeLoan(amount, rate, days) {
+
+  const total =
+    Math.ceil(
+      amount *
+      (1 + rate)
+    );
+
+  const payment =
+    Math.ceil(
+      total /
+      days
+    );
+
+  state.company.cash +=
+    amount;
+
+  state.company.loans.push({
+
+    id:
+      Date.now() +
+      Math.random(),
+
+    original:
+      amount,
+
+    remaining:
+      total,
+
+    payment:
+      payment,
+
+    daysLeft:
+      days
+  });
+
+  state.eventHistory.push({
+    day: state.day,
+    type: "Кредит",
+    text:
+      `Получен кредит ${formatMoney(amount)}`
+  });
+
+  saveGame();
+
+  renderGame();
+
+  showToast(
+    `Получено ${formatMoney(amount)}`
+  );
+}
+
+/* =========================================================
+   ЗДАНИЯ
+   ========================================================= */
+
+function renderBuildings() {
+
+  return `
+
+    <h1 class="screen-title">
+      Здания
+    </h1>
+
+    <p class="screen-subtitle">
+      Недвижимость увеличивает возможности компании.
+    </p>
+
+    <section class="section">
+
+      <div class="list">
+
+        ${
+          Object.entries(BUILDINGS)
+            .map(([key, building]) => `
+
+              <div class="card">
+
+                <div class="card-row">
+
+                  <div>
+
+                    <div class="card-title">
+                      ${building.name}
+                    </div>
+
+                    <div class="card-meta">
+
+                      Цена:
+                      ${formatMoney(
+                        building.price
+                      )}
+
+                      ·
+
+                      Аренда:
+                      ${formatMoney(
+                        building.rent
+                      )}/день
+
+                    </div>
+
+                  </div>
+
+                  <span class="badge">
+                    ×${building.multiplier.toFixed(2)}
+                  </span>
+
+                </div>
+
+                <div class="card-meta">
+
+                  Вместимость:
+                  ${building.capacity}
+
+                </div>
+
+                <div class="card-actions">
+
+                  <button
+                    class="btn btn-small btn-primary"
+                    data-action="building"
+                    data-building="${key}">
+
+                    КУПИТЬ
+
+                  </button>
+
+                </div>
+
+              </div>
+
+            `)
+            .join("")
+        }
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      <div class="section-head">
+
+        <h2 class="section-title">
+          Мои объекты
+        </h2>
+
+        <span class="section-note">
+          ${state.company.buildings.length}
+        </span>
+
+      </div>
+
+      <div class="list">
+
+        ${
+          state.company.buildings.length
+            ? state.company.buildings
+                .map(building => `
+
+                  <div class="card">
+
+                    <div class="card-title">
+                      ${building.name}
+                    </div>
+
+                    <div class="card-meta">
+
+                      ${building.district}
+
+                      ·
+
+                      Вместимость:
+                      ${building.capacity}
+
+                    </div>
+
+                  </div>
+
+                `)
+                .join("")
+            : `
+              <div class="empty">
+                Недвижимости пока нет.
+              </div>
+            `
+        }
+
+      </div>
+
+    </section>
+  `;
+}
+
+function buyBuilding(key) {
+
+  const building =
+    BUILDINGS[key];
+
+  if (!building) return;
+
+  if (
+    state.company.cash <
+    building.price
+  ) {
+
+    showToast(
+      "Недостаточно денег"
+    );
+
+    return;
+  }
+
+  state.company.cash -=
+    building.price;
+
+  state.company.buildings.push({
+
+    id:
+      Date.now() +
+      Math.random(),
+
+    type:
+      key,
+
+    name:
+      building.name,
+
+    price:
+      building.price,
+
+    rent:
+      building.rent,
+
+    capacity:
+      building.capacity,
+
+    multiplier:
+      building.multiplier,
+
+    district:
+      DISTRICTS[
+        state.company.district
+      ].name
+  });
+
+  state.company.companyValue +=
+    Math.round(
+      building.price * 0.8
+    );
+
+  saveGame();
+
+  renderGame();
+
+  showToast(
+    `${building.name} куплен`
+  );
+}
+
+/* =========================================================
+   СОБЫТИЯ
+   ========================================================= */
+
+function renderEvents() {
+
+  return `
+
+    <h1 class="screen-title">
+      События
+    </h1>
+
+    <p class="screen-subtitle">
+      История важных событий компании.
+    </p>
+
+    <section class="section">
+
+      ${
+        state.eventHistory.length
+          ? `
+
+            <div class="list">
+
+              ${
+                state.eventHistory
+                  .slice()
+                  .reverse()
+                  .slice(0, 30)
+                  .map(event => `
+
+                    <div class="card">
+
+                      <div class="card-row">
+
+                        <strong>
+                          День ${event.day}
+                        </strong>
+
+                        <span class="badge">
+                          ${event.type}
+                        </span>
+
+                      </div>
+
+                      <div class="card-meta">
+                        ${event.text}
+                      </div>
+
+                    </div>
+
+                  `)
+                  .join("")
+              }
+
+            </div>
+
+          `
+          : `
+
+            <div class="empty">
+              Событий пока не было.
+            </div>
+
+          `
+      }
+
+    </section>
   `;
 }
 
 /* =========================================================
-   CITY ACTION
-========================================================= */
+   АНАЛИТИКА
+   ========================================================= */
 
-function moveDistrict(name) {
+function renderAnalytics() {
 
-  if (name === state.district) {
-    return;
-  }
+  const period =
+    state.ui.analyticsPeriod;
 
-  const cost = 250;
+  const data =
+    state.analytics.slice(-period);
 
-  if (state.cash < cost) {
-    toast("Not enough cash.");
-    return;
-  }
-
-  state.cash -= cost;
-
-  state.district = name;
-
-  saveState();
-
-  render();
-
-  toast("District changed.");
-}
-
-/* =========================================================
-   STAFF
-========================================================= */
-
-function hireEmployee() {
-
-  const roles =
-    Object.keys(STAFF_TYPES)
-      .join(", ");
-
-  const input =
-    prompt(
-      "Choose role:\n\n" + roles
+  const revenue =
+    data.reduce(
+      (sum, day) =>
+        sum + day.revenue,
+      0
     );
 
-  if (!input) {
-    return;
-  }
-
-  const role =
-    input.trim().toUpperCase();
-
-  const template =
-    STAFF_TYPES[role];
-
-  if (!template) {
-    toast("Unknown role.");
-    return;
-  }
-
-  if (state.cash < template.salary) {
-    toast("Not enough cash.");
-    return;
-  }
-
-  const employee = {
-
-    name:
-      template.name +
-      " " +
-      (state.staff.length + 1),
-
-    role: template.name,
-
-    salary: template.salary,
-
-    efficiency: template.efficiency,
-
-    experience: 1,
-
-    morale: 90
-  };
-
-  state.staff.push(employee);
-
-  saveState();
-
-  checkAchievements();
-
-  render();
-
-  toast("Employee hired.");
-}
-
-function fireEmployee(index) {
-
-  state.staff.splice(index, 1);
-
-  saveState();
-
-  render();
-
-  toast("Employee released.");
-}
-
-/* =========================================================
-   BUILDINGS
-========================================================= */
-
-function buyBuilding(type) {
-
-  const building =
-    BUILDINGS[type];
-
-  if (!building) {
-    return;
-  }
-
-  if (state.cash < building.price) {
-    toast("Not enough cash.");
-    return;
-  }
-
-  state.cash -= building.price;
-
-  state.buildings.push({
-    type,
-    district: state.district
-  });
-
-  saveState();
-
-  checkAchievements();
-
-  render();
-
-  toast("Location acquired.");
-}
-
-/* =========================================================
-   MARKETING
-========================================================= */
-
-function launchMarketing(type) {
-
-  const campaign =
-    MARKETING[type];
-
-  if (!campaign) {
-    return;
-  }
-
-  if (state.cash < campaign.cost) {
-    toast("Not enough cash.");
-    return;
-  }
-
-  state.cash -= campaign.cost;
-
-  state.marketing.push({
-    type,
-    days: campaign.days,
-    effect: campaign.effect
-  });
-
-  if (type === "INFLUENCER") {
-    state.flags.viral = true;
-  }
-
-  saveState();
-
-  checkAchievements();
-
-  render();
-
-  toast("Campaign launched.");
-}
-
-/* =========================================================
-   LOANS
-========================================================= */
-
-function takeLoan(amount) {
-
-  if (state.loans.length >= 3) {
-    toast("Maximum 3 active loans.");
-    return;
-  }
-
-  const total =
-    Math.round(amount * 1.05);
-
-  state.cash += amount;
-
-  state.loans.push({
-    original: amount,
-    remaining: total,
-    days: 20
-  });
-
-  state.flags.hadLoan = true;
-
-  saveState();
-
-  checkAchievements();
-
-  render();
-
-  toast("Capital received.");
-}
-
-function payLoan(index) {
-
-  const loan =
-    state.loans[index];
-
-  if (!loan) {
-    return;
-  }
-
-  const payment =
-    Math.min(
-      loan.remaining,
-      state.cash
+  const expenses =
+    data.reduce(
+      (sum, day) =>
+        sum + day.expenses,
+      0
     );
 
-  if (payment <= 0) {
-    toast("No cash available.");
-    return;
-  }
-
-  state.cash -= payment;
-
-  loan.remaining -= payment;
-
-  if (loan.remaining <= 0) {
-    state.loans.splice(index, 1);
-  }
-
-  saveState();
-
-  checkAchievements();
-
-  render();
-
-  toast("Loan payment made.");
-}
-
-/* =========================================================
-   EVENTS
-========================================================= */
-
-function generateEvent() {
-
-  if (Math.random() > 0.55) {
-    return null;
-  }
-
-  const source =
-    EVENTS[
-      Math.floor(
-        Math.random() * EVENTS.length
-      )
-    ];
-
-  return {
-    title: source.title,
-    text: source.text,
-    choices: source.choices
-  };
-}
-
-function chooseEvent(index) {
-
-  if (!state.event) {
-    return;
-  }
-
-  const choice =
-    state.event.choices[index];
-
-  if (!choice) {
-    return;
-  }
-
-  applyEventEffect(
-    choice.effect || {}
-  );
-
-  state.event = null;
-
-  saveState();
-
-  render();
-
-  toast("Decision applied.");
-}
-
-function applyEventEffect(effect) {
-
-  if (effect.cash) {
-    state.cash += effect.cash;
-  }
-
-  if (effect.reputation) {
-    state.reputation += effect.reputation;
-  }
-
-  if (effect.costRate) {
-    state.modifiers.costRate += effect.costRate;
-  }
-
-  if (effect.marketing) {
-    state.modifiers.marketing += effect.marketing;
-  }
-
-  if (effect.demand) {
-    state.modifiers.demand += effect.demand;
-  }
-
-  if (effect.revenue) {
-    state.modifiers.revenue += effect.revenue;
-  }
-
-  if (effect.rent) {
-    state.modifiers.rent += effect.rent;
-  }
-
-  if (effect.traffic) {
-    state.modifiers.traffic += effect.traffic;
-  }
-
-  if (effect.staffLoss && state.staff.length) {
-    state.staff.pop();
-  }
-
-  if (effect.morale) {
-    state.staff.forEach(
-      employee => {
-        employee.morale =
-          clamp(
-            employee.morale +
-            effect.morale,
-            0,
-            100
-          );
-      }
+  const profit =
+    data.reduce(
+      (sum, day) =>
+        sum + day.profit,
+      0
     );
-  }
 
-  state.reputation =
-    clamp(
-      state.reputation,
-      0,
-      100
+  const customers =
+    data.reduce(
+      (sum, day) =>
+        sum + day.customers,
+      0
     );
+
+  return `
+
+    <h1 class="screen-title">
+      Аналитика
+    </h1>
+
+    <p class="screen-subtitle">
+      История реальных игровых показателей.
+    </p>
+
+    <section class="section">
+
+      <div class="choice-grid">
+
+        ${
+          [7, 30, 90, 3650]
+            .map(value => `
+
+              <button
+                class="choice ${
+                  period === value
+                    ? "active"
+                    : ""
+                }"
+                data-action="analytics-period"
+                data-period="${value}">
+
+                <strong>
+                  ${
+                    value === 3650
+                      ? "ВСЁ"
+                      : `${value}Д`
+                  }
+                </strong>
+
+                <small>
+                  ${
+                    value === 7
+                      ? "7 дней"
+                      : value === 30
+                      ? "30 дней"
+                      : value === 90
+                      ? "90 дней"
+                      : "Вся история"
+                  }
+                </small>
+
+              </button>
+
+            `)
+            .join("")
+        }
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      <div class="stats-grid">
+
+        ${stat(
+          "ВЫРУЧКА",
+          formatMoney(revenue)
+        )}
+
+        ${stat(
+          "РАСХОДЫ",
+          formatMoney(expenses)
+        )}
+
+        ${stat(
+          "ПРИБЫЛЬ",
+          formatMoney(profit),
+          profit >= 0
+            ? "green"
+            : "red"
+        )}
+
+        ${stat(
+          "КЛИЕНТЫ",
+          formatNumber(customers)
+        )}
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      <div class="card">
+
+        <div class="section-head">
+
+          <h2 class="section-title">
+            Прибыль
+          </h2>
+
+          <span class="section-note">
+            ${data.length} дней
+          </span>
+
+        </div>
+
+        ${
+          data.length >= 2
+            ? renderSparkline(
+                data.map(
+                  day => day.profit
+                )
+              )
+            : `
+              <div class="empty">
+                Нужно больше данных.
+              </div>
+            `
+        }
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      <div class="list">
+
+        ${
+          data
+            .slice()
+            .reverse()
+            .map(day => `
+
+              <div class="card">
+
+                <div class="card-row">
+
+                  <strong>
+                    День ${day.day}
+                  </strong>
+
+                  <strong class="${
+                    day.profit >= 0
+                      ? "positive"
+                      : "negative"
+                  }">
+
+                    ${
+                      day.profit >= 0
+                        ? "+"
+                        : ""
+                    }
+
+                    ${formatMoney(
+                      day.profit
+                    )}
+
+                  </strong>
+
+                </div>
+
+                <div class="card-meta">
+
+                  Выручка:
+                  ${formatMoney(day.revenue)}
+
+                  ·
+
+                  Расходы:
+                  ${formatMoney(day.expenses)}
+
+                  ·
+
+                  Клиенты:
+                  ${formatNumber(day.customers)}
+
+                </div>
+
+              </div>
+
+            `)
+            .join("")
+        }
+
+      </div>
+
+    </section>
+  `;
 }
 
 /* =========================================================
-   MARKET UPDATE
-========================================================= */
+   ДОСТИЖЕНИЯ
+   ========================================================= */
 
-function updateMarket() {
+function renderAchievements() {
 
-  Object.keys(INDUSTRIES)
-    .forEach(industry => {
+  return `
 
-      const current =
-        state.market[industry] || 0;
+    <h1 class="screen-title">
+      Достижения
+    </h1>
 
-      const movement =
-        Math.random() * 10 - 5;
+    <p class="screen-subtitle">
+      Цели для долгосрочного развития.
+    </p>
 
-      state.market[industry] =
-        clamp(
-          current * .7 + movement * .3,
-          -30,
-          30
-        );
+    <section class="section">
 
-    });
+      <div class="list">
+
+        ${
+          Object.entries(ACHIEVEMENTS)
+            .map(([id, achievement]) => {
+
+              const unlocked =
+                state.unlockedAchievements
+                  .includes(id);
+
+              return `
+
+                <div class="card">
+
+                  <div class="card-row">
+
+                    <div>
+
+                      <div class="card-title">
+                        ${achievement.title}
+                      </div>
+
+                      <div class="card-meta">
+                        ${achievement.description}
+                      </div>
+
+                    </div>
+
+                    <span class="badge ${
+                      unlocked
+                        ? "accent"
+                        : ""
+                    }">
+
+                      ${
+                        unlocked
+                          ? "ОТКРЫТО"
+                          : "ЗАКРЫТО"
+                      }
+
+                    </span>
+
+                  </div>
+
+                </div>
+
+              `;
+            })
+            .join("")
+        }
+
+      </div>
+
+    </section>
+  `;
 }
 
 /* =========================================================
-   DAILY ECONOMY
-========================================================= */
+   НАВИГАЦИЯ
+   ========================================================= */
 
-function endDay() {
+function renderBottomNavigation() {
 
-  if (state.event) {
-    toast("Resolve the event first.");
-    return;
-  }
+  const primary = [
+    ["home", "⌂", "Главная"],
+    ["city", "▦", "Город"],
+    ["market", "↗", "Рынок"],
+    ["company", "●", "Компания"]
+  ];
 
-  updateMarket();
+  const extraScreens = [
+    "staff",
+    "marketing",
+    "bank",
+    "buildings",
+    "events",
+    "analytics",
+    "achievements"
+  ];
+
+  const isExtra =
+    extraScreens.includes(
+      state.ui.screen
+    );
+
+  return `
+
+    <nav class="bottom-nav">
+
+      <div class="nav-inner">
+
+        ${
+          primary
+            .map(
+              ([screen, icon, label]) => `
+
+                <button
+                  class="nav-btn ${
+                    state.ui.screen === screen
+                      ? "active"
+                      : ""
+                  }"
+                  data-action="navigate"
+                  data-screen="${screen}">
+
+                  <span class="nav-icon">
+                    ${icon}
+                  </span>
+
+                  <span class="nav-label">
+                    ${label}
+                  </span>
+
+                </button>
+
+              `
+            )
+            .join("")
+        }
+
+        <button
+          class="nav-btn ${
+            isExtra
+              ? "active"
+              : ""
+          }"
+          data-action="more">
+
+          <span class="nav-icon">
+            ≡
+          </span>
+
+          <span class="nav-label">
+            Ещё
+          </span>
+
+        </button>
+
+      </div>
+
+    </nav>
+  `;
+}
+
+function openMoreMenu() {
+
+  openModal(`
+
+    <h2 class="modal-title">
+      Разделы
+    </h2>
+
+    <div class="more-menu">
+
+      ${[
+        [
+          "staff",
+          "Сотрудники",
+          "Команда"
+        ],
+        [
+          "marketing",
+          "Маркетинг",
+          "Реклама"
+        ],
+        [
+          "bank",
+          "Банк",
+          "Кредиты"
+        ],
+        [
+          "buildings",
+          "Здания",
+          "Недвижимость"
+        ],
+        [
+          "events",
+          "События",
+          "История"
+        ],
+        [
+          "analytics",
+          "Аналитика",
+          "Статистика"
+        ],
+        [
+          "achievements",
+          "Достижения",
+          "Цели"
+        ]
+      ]
+        .map(
+          ([screen, title, subtitle]) => `
+
+            <button
+              class="more-item"
+              data-action="navigate"
+              data-screen="${screen}">
+
+              ${title}
+
+              <small>
+                ${subtitle}
+              </small>
+
+            </button>
+
+          `
+        )
+        .join("")}
+
+    </div>
+  `);
+}
+
+/* =========================================================
+   ЭКОНОМИКА
+   ========================================================= */
+
+function calculateEconomy() {
+
+  const c =
+    state.company;
 
   const industry =
-    INDUSTRIES[state.industry];
+    INDUSTRIES[c.industry];
+
+  const strategy =
+    STRATEGIES[c.strategy];
 
   const district =
-    DISTRICTS[state.district];
+    DISTRICTS[c.district];
 
-  /* STAFF */
+  const market =
+    state.market[c.industry];
+
+  /* Сотрудники */
 
   let staffMultiplier = 1;
 
-  state.staff.forEach(employee => {
+  c.employees.forEach(employee => {
 
-    staffMultiplier +=
-      employee.efficiency *
-      (employee.morale / 100);
+    const role =
+      STAFF[employee.role];
 
+    let contribution =
+      employee.efficiency;
+
+    if (employee.role === "ACCOUNTANT") {
+      contribution =
+        1 +
+        (employee.efficiency - 1) *
+        0.5;
+    }
+
+    staffMultiplier *=
+      1 +
+      (contribution - 1) *
+      0.35;
   });
 
-  /* BUILDINGS */
+  /* Здания */
 
-  let capacityMultiplier = 1;
+  let buildingMultiplier = 1;
 
-  state.buildings.forEach(
-    building => {
+  let capacity = 60;
 
-      capacityMultiplier *=
-        BUILDINGS[
-          building.type
-        ].capacity;
+  c.buildings.forEach(building => {
 
-    }
-  );
+    buildingMultiplier *=
+      building.multiplier;
 
-  /* MARKETING */
+    capacity +=
+      building.capacity;
+  });
 
-  let marketingMultiplier =
-    state.modifiers.marketing;
+  capacity *=
+    c.effects.capacity;
 
-  state.marketing.forEach(
-    campaign => {
-      marketingMultiplier *=
-        campaign.effect;
-    }
-  );
-
-  /* MARKET */
-
-  const marketTrend =
-    state.market[state.industry] || 0;
-
-  const trendMultiplier =
-    1 + marketTrend / 100;
-
-  /* REPUTATION */
+  /* Репутация */
 
   const reputationMultiplier =
-    1 + state.reputation / 100;
+    0.72 +
+    (
+      clamp(
+        c.reputation,
+        0,
+        100
+      ) / 100
+    ) * 0.58;
 
-  /* STRATEGY */
+  /* Цена */
 
-  let strategyMultiplier = 1;
-  let priceMultiplier = 1;
+  const priceMultiplier =
+    clamp(
+      c.priceMultiplier,
+      0.5,
+      2
+    );
 
-  if (state.strategy === "premium") {
-    priceMultiplier = 1.12;
-    strategyMultiplier = 1.10;
-  }
+  const priceDemand =
+    Math.pow(
+      1 / priceMultiplier,
+      1.15
+    );
 
-  if (state.strategy === "low-cost") {
-    priceMultiplier = .92;
-    strategyMultiplier = 1.08;
-  }
+  /* Конкуренция */
 
-  if (state.strategy === "innovative") {
-    priceMultiplier = 1.05;
-    strategyMultiplier = 1.12;
-  }
+  const competition =
+    1 /
+    Math.max(
+      0.7,
+      district.competition
+    );
 
-  /* DEMAND */
+  /* Общий спрос */
 
-  let demand =
-    industry.demand *
+  let customerPotential =
+
+    industry.baseDemand *
+
     district.demand *
-    district.traffic *
-    district.traffic *
-    staffMultiplier *
-    capacityMultiplier *
-    marketingMultiplier *
-    trendMultiplier *
-    reputationMultiplier *
-    state.modifiers.demand *
-    state.modifiers.traffic *
-    strategyMultiplier;
 
-  demand *=
-    1 / (
-      1 +
-      district.competition * .08
+    district.traffic *
+
+    market.demand *
+
+    strategy.demand *
+
+    strategy.reputation *
+
+    reputationMultiplier *
+
+    priceDemand *
+
+    staffMultiplier *
+
+    buildingMultiplier *
+
+    c.effects.demand *
+
+    c.effects.marketing *
+
+    competition;
+
+  /* Случайность */
+
+  customerPotential *=
+    random(
+      0.90,
+      1.10
     );
 
   const customers =
     Math.max(
-      2,
-      Math.round(demand)
+      0,
+      Math.min(
+        Math.round(
+          capacity * 2.8
+        ),
+        Math.round(
+          customerPotential
+        )
+      )
     );
 
-  /* PRICE */
+  /* Цена */
 
   const price =
-    industry.price *
+    industry.averagePrice *
     priceMultiplier;
 
-  /* REVENUE */
+  /* Выручка */
 
-  let revenue =
+  const revenue =
     customers *
-    price *
-    state.modifiers.revenue;
+    price;
 
-  /* COSTS */
+  /* Себестоимость */
 
   const productCost =
     revenue *
-    (
-      industry.cost +
-      state.modifiers.costRate
-    );
+    industry.productCost *
+    c.effects.cost;
+
+  /* Зарплаты */
 
   const salaries =
-    state.staff.reduce(
-      (sum, employee) =>
-        sum + employee.salary,
+    c.employees.reduce(
+      (total, employee) =>
+        total +
+        STAFF[employee.role].salary,
       0
     );
 
-  const buildingRent =
-    state.buildings.reduce(
-      (sum, building) =>
-        sum +
-        BUILDINGS[
-          building.type
-        ].rent,
-      0
-    );
+  /* Аренда */
 
-  const districtRent =
+  const rent =
+    c.buildings.reduce(
+      (total, building) =>
+        total +
+        building.rent,
+      0
+    ) *
     district.rent *
-    state.modifiers.rent;
+    c.effects.rent;
 
-  /* LOANS */
+  /* Кредиты */
 
-  let loanPayment = 0;
-
-  state.loans.forEach(loan => {
-
-    const dailyPayment =
-      Math.min(
-        loan.remaining,
-        Math.ceil(
-          loan.remaining /
-          Math.max(
-            1,
-            loan.days
-          )
-        )
-      );
-
-    loan.remaining -=
-      dailyPayment;
-
-    loan.days--;
-
-    loanPayment +=
-      dailyPayment;
-
-  });
-
-  state.loans =
-    state.loans.filter(
-      loan =>
-        loan.remaining > 0 &&
-        loan.days > 0
+  const loanPayments =
+    c.loans.reduce(
+      (total, loan) =>
+        total +
+        Math.min(
+          loan.payment,
+          loan.remaining
+        ),
+      0
     );
 
-  /* TOTAL */
+  /* Прочие */
+
+  const otherExpenses =
+    80 +
+    customers * 2;
 
   const expenses =
     productCost +
     salaries +
-    buildingRent +
-    districtRent +
-    loanPayment;
+    rent +
+    loanPayments +
+    otherExpenses;
 
   const profit =
     revenue -
     expenses;
 
-  /* STATE */
+  return {
 
-  state.cash += profit;
+    customers,
 
-  state.reputation =
+    revenue,
+
+    expenses,
+
+    profit,
+
+    productCost,
+
+    salaries,
+
+    rent,
+
+    loanPayments,
+
+    otherExpenses
+
+  };
+}
+
+/* =========================================================
+   РЫНОК
+   ========================================================= */
+
+function updateMarket() {
+
+  Object.entries(state.market)
+    .forEach(([key, market]) => {
+
+      const movement =
+        Number(
+          random(
+            -0.06,
+            0.06
+          ).toFixed(3)
+        );
+
+      market.trend =
+        movement * 100;
+
+      market.demand =
+        clamp(
+          market.demand +
+          movement,
+          0.65,
+          1.45
+        );
+
+      market.competition =
+        clamp(
+          market.competition +
+          randomInt(-3, 3),
+          20,
+          90
+        );
+
+      market.history.push(
+        market.demand
+      );
+
+      if (
+        market.history.length >
+        30
+      ) {
+        market.history.shift();
+      }
+    });
+}
+
+/* =========================================================
+   КРЕДИТЫ
+   ========================================================= */
+
+function processLoans() {
+
+  state.company.loans
+    .forEach(loan => {
+
+      const payment =
+        Math.min(
+          loan.payment,
+          loan.remaining
+        );
+
+      loan.remaining -=
+        payment;
+
+      loan.daysLeft -= 1;
+
+    });
+
+  state.company.loans =
+    state.company.loans.filter(
+      loan =>
+        loan.remaining > 0 &&
+        loan.daysLeft > 0
+    );
+}
+
+/* =========================================================
+   ЭФФЕКТЫ
+   ========================================================= */
+
+function processEffects() {
+
+  const effects =
+    state.company.effects;
+
+  if (effects.demandDays > 0) {
+
+    effects.demandDays--;
+
+    if (
+      effects.demandDays <= 0
+    ) {
+      effects.demand = 1;
+    }
+  }
+
+  if (
+    effects.marketingDays > 0
+  ) {
+
+    effects.marketingDays--;
+
+    if (
+      effects.marketingDays <= 0
+    ) {
+      effects.marketing = 1;
+    }
+  }
+
+  if (
+    effects.costDays > 0
+  ) {
+
+    effects.costDays--;
+
+    if (
+      effects.costDays <= 0
+    ) {
+      effects.cost = 1;
+    }
+  }
+
+  if (
+    effects.rentDays > 0
+  ) {
+
+    effects.rentDays--;
+
+    if (
+      effects.rentDays <= 0
+    ) {
+      effects.rent = 1;
+    }
+  }
+
+  if (
+    effects.capacityDays > 0
+  ) {
+
+    effects.capacityDays--;
+
+    if (
+      effects.capacityDays <= 0
+    ) {
+      effects.capacity = 1;
+    }
+  }
+}
+
+/* =========================================================
+   СТОИМОСТЬ КОМПАНИИ
+   ========================================================= */
+
+function updateCompanyValue() {
+
+  const c =
+    state.company;
+
+  const buildingValue =
+    c.buildings.reduce(
+      (sum, building) =>
+        sum +
+        building.price *
+        0.82,
+      0
+    );
+
+  const revenueValue =
+    c.totalRevenue *
+    0.08;
+
+  const profitValue =
+    Math.max(
+      0,
+      c.totalProfit
+    ) * 0.5;
+
+  const reputationValue =
+    c.reputation *
+    400;
+
+  const teamValue =
+    c.employees.length *
+    1000;
+
+  c.companyValue =
+    Math.max(
+      1000,
+      Math.round(
+        10000 +
+        Math.max(0, c.cash) +
+        buildingValue +
+        revenueValue +
+        profitValue +
+        reputationValue +
+        teamValue
+      )
+    );
+}
+
+/* =========================================================
+   УРОВЕНЬ
+   ========================================================= */
+
+function updateLevel() {
+
+  const c =
+    state.company;
+
+  let required =
+    c.level * 100;
+
+  while (
+    c.experience >= required
+  ) {
+
+    c.experience -=
+      required;
+
+    c.level += 1;
+
+    required =
+      c.level * 100;
+
+    showToast(
+      `Новый уровень: ${c.level}`
+    );
+  }
+}
+
+/* =========================================================
+   ДОСТИЖЕНИЯ
+   ========================================================= */
+
+function checkAchievements() {
+
+  const c =
+    state.company;
+
+  const conditions = {
+
+    FIRST_PROFIT:
+      c.totalProfit > 0,
+
+    FIRST_EMPLOYEE:
+      c.employees.length >= 1,
+
+    CUSTOMERS_100:
+      c.totalCustomers >= 100,
+
+    CASH_100K:
+      c.cash >= 100000,
+
+    FIRST_BUILDING:
+      c.buildings.length >= 1,
+
+    EMPLOYEES_10:
+      c.employees.length >= 10,
+
+    VALUE_1M:
+      c.companyValue >= 1000000,
+
+    REPUTATION_80:
+      c.reputation >= 80,
+
+    FIRST_LOAN:
+      state.eventHistory
+        .some(event =>
+          event.type === "Кредит"
+        ),
+
+    DEBT_FREE:
+      state.day > 1 &&
+      c.loans.length === 0,
+
+    DAY_100:
+      state.day >= 100,
+
+    BUILDINGS_10:
+      c.buildings.length >= 10,
+
+    REVENUE_1M:
+      c.totalRevenue >= 1000000,
+
+    MARKETING:
+      c.campaigns.length >= 1,
+
+    LEVEL_10:
+      c.level >= 10
+  };
+
+  Object.entries(
+    conditions
+  ).forEach(([id, condition]) => {
+
+    if (
+      condition &&
+      !state.unlockedAchievements.includes(id)
+    ) {
+
+      state.unlockedAchievements.push(id);
+
+      const achievement =
+        ACHIEVEMENTS[id];
+
+      showToast(
+        `Достижение: ${achievement.title}`
+      );
+    }
+
+  });
+}
+
+/* =========================================================
+   СЛУЧАЙНОЕ СОБЫТИЕ
+   ========================================================= */
+
+function maybeTriggerEvent() {
+
+  /*
+   Не слишком часто:
+   примерно 30% рабочих дней.
+  */
+
+  if (
+    Math.random() > 0.30
+  ) {
+    return;
+  }
+
+  const event =
+    EVENTS[
+      randomInt(
+        0,
+        EVENTS.length - 1
+      )
+    ];
+
+  state.pendingEvent = event;
+
+  state.eventHistory.push({
+
+    day:
+      state.day,
+
+    type:
+      "Событие",
+
+    text:
+      event.title
+
+  });
+
+  saveGame();
+
+  showEvent(event);
+}
+
+function showEvent(event) {
+
+  openModal(`
+
+    <div class="hero-kicker">
+      СОБЫТИЕ · ДЕНЬ ${state.day}
+    </div>
+
+    <h2 class="modal-title">
+      ${event.title}
+    </h2>
+
+    <p class="modal-text">
+      ${event.description}
+    </p>
+
+    ${
+      event.choices
+        .map(
+          (choice, index) => `
+
+            <button
+              class="event-choice"
+              data-action="event-choice"
+              data-index="${index}">
+
+              <strong>
+                ${choice.title}
+              </strong>
+
+              <span>
+                ${choice.description}
+              </span>
+
+            </button>
+
+          `
+        )
+        .join("")
+    }
+
+  `);
+}
+
+function chooseEvent(index) {
+
+  const event =
+    state.pendingEvent;
+
+  if (!event) return;
+
+  const choice =
+    event.choices[index];
+
+  if (!choice) return;
+
+  choice.action();
+
+  state.company.reputation =
     clamp(
-      state.reputation +
-      (
-        profit > 0
-          ? .35
-          : -.5
-      ),
+      state.company.reputation,
       0,
       100
     );
 
-  state.totalCustomers +=
-    customers;
+  state.eventHistory[
+    state.eventHistory.length - 1
+  ].text +=
+    ` · Решение: ${choice.title}`;
 
-  state.lifetimeRevenue +=
-    revenue;
+  state.pendingEvent = null;
 
-  state.lifetimeProfit +=
-    profit;
+  saveGame();
 
-  /* EMPLOYEE MORALE */
+  closeModal();
 
-  state.staff.forEach(
-    employee => {
+  renderGame();
 
-      employee.experience += .01;
-
-      employee.morale =
-        clamp(
-          employee.morale +
-          (
-            profit > 0
-              ? 1
-              : -3
-          ),
-          40,
-          100
-        );
-
-    }
-  );
-
-  /* COMPANY VALUE */
-
-  const assetValue =
-    state.buildings.reduce(
-      (sum, building) =>
-        sum +
-        BUILDINGS[
-          building.type
-        ].price * .7,
-      0
-    );
-
-  state.companyValue =
-    Math.max(
-      0,
-
-      state.cash +
-
-      state.lifetimeProfit * .35 +
-
-      state.reputation * 1000 +
-
-      assetValue
-    );
-
-  /* HISTORY */
-
-  state.history.push({
-
-    day: state.day,
-
-    revenue,
-    expenses,
-    profit,
-
-    customers,
-
-    cash: state.cash,
-
-    companyValue:
-      state.companyValue
-
-  });
-
-  /* MARKETING TIME */
-
-  state.marketing.forEach(
-    campaign => {
-      campaign.days--;
-    }
-  );
-
-  state.marketing =
-    state.marketing.filter(
-      campaign =>
-        campaign.days > 0
-    );
-
-  /* RESET TEMP MODIFIERS */
-
-  state.modifiers.costRate = 0;
-  state.modifiers.marketing = 1;
-  state.modifiers.demand = 1;
-  state.modifiers.revenue = 1;
-  state.modifiers.rent = 1;
-  state.modifiers.traffic = 1;
-
-  /* NEXT DAY */
-
-  state.day++;
-
-  /* EVENT */
-
-  state.event =
-    generateEvent();
-
-  checkAchievements();
-
-  saveState();
-
-  render();
-
-  toast(
-    `DAY CLOSED · ${money(profit)}`
+  showToast(
+    "Решение принято"
   );
 }
 
 /* =========================================================
-   ACHIEVEMENTS
-========================================================= */
+   ЗАВЕРШЕНИЕ ДНЯ
+   ========================================================= */
 
-function checkAchievements() {
+function endDay() {
 
-  const checks = {
-
-    FIRST_PROFIT:
-      state.lifetimeProfit > 0,
-
-    FIRST_EMPLOYEE:
-      state.staff.length >= 1,
-
-    "100_CUSTOMERS":
-      state.totalCustomers >= 100,
-
-    "100K_CASH":
-      state.cash >= 100000,
-
-    FIRST_LOCATION:
-      state.buildings.length >= 1,
-
-    "10_EMPLOYEES":
-      state.staff.length >= 10,
-
-    "1M_VALUE":
-      state.companyValue >= 1000000,
-
-    MARKET_LEADER:
-      state.reputation >= 80,
-
-    FIRST_LOAN:
-      state.flags.hadLoan,
-
-    DEBT_FREE:
-      state.flags.hadLoan &&
-      state.loans.length === 0,
-
-    "100_DAYS":
-      state.day >= 100,
-
-    "10_LOCATIONS":
-      state.buildings.length >= 10,
-
-    "1M_REVENUE":
-      state.lifetimeRevenue >= 1000000,
-
-    VIRAL:
-      state.flags.viral,
-
-    EMPIRE:
-      state.companyValue >= 5000000
-
-  };
-
-  Object.entries(checks)
-    .forEach(([id, unlocked]) => {
-
-      if (
-        unlocked &&
-        !state.achievements.includes(id)
-      ) {
-
-        state.achievements.push(id);
-
-        toast(
-          "ACHIEVEMENT: " +
-          getAchievementName(id)
-        );
-
-      }
-
-    });
-
-  saveState();
-}
-
-function getAchievementName(id) {
-
-  const item =
-    ACHIEVEMENTS.find(
-      achievement =>
-        achievement[0] === id
-    );
-
-  return item
-    ? item[1]
-    : id;
-}
-
-/* =========================================================
-   RESET
-========================================================= */
-
-function resetCompany() {
-
-  const confirmed =
-    confirm(
-      "Reset this company? This cannot be undone."
-    );
-
-  if (!confirmed) {
+  if (state.pendingEvent) {
     return;
   }
 
-  localStorage.removeItem(
-    SAVE_KEY
+  const result =
+    calculateEconomy();
+
+  /* Деньги */
+
+  state.company.cash +=
+    result.profit;
+
+  /* Статистика */
+
+  state.company.totalRevenue +=
+    result.revenue;
+
+  state.company.totalExpenses +=
+    result.expenses;
+
+  state.company.totalProfit +=
+    result.profit;
+
+  state.company.totalCustomers +=
+    result.customers;
+
+  /* Опыт */
+
+  state.company.experience +=
+    Math.max(
+      5,
+      Math.round(
+        result.revenue /
+        250
+      )
+    );
+
+  /* Репутация */
+
+  if (
+    result.profit > 0
+  ) {
+
+    state.company.reputation +=
+      0.7;
+
+  } else {
+
+    state.company.reputation -=
+      0.5;
+  }
+
+  state.company.reputation =
+    clamp(
+      state.company.reputation,
+      0,
+      100
+    );
+
+  /* Аналитика */
+
+  state.analytics.push({
+
+    day:
+      state.day,
+
+    revenue:
+      Math.round(
+        result.revenue
+      ),
+
+    expenses:
+      Math.round(
+        result.expenses
+      ),
+
+    profit:
+      Math.round(
+        result.profit
+      ),
+
+    customers:
+      result.customers,
+
+    cash:
+      Math.round(
+        state.company.cash
+      ),
+
+    companyValue:
+      Math.round(
+        state.company.companyValue
+      )
+  });
+
+  /* Кредиты */
+
+  processLoans();
+
+  /* Рынок */
+
+  updateMarket();
+
+  /* Эффекты */
+
+  processEffects();
+
+  /* Следующий день */
+
+  state.day += 1;
+
+  /* Стоимость */
+
+  updateCompanyValue();
+
+  /* Уровень */
+
+  updateLevel();
+
+  /* Достижения */
+
+  checkAchievements();
+
+  saveGame();
+
+  renderGame();
+
+  if (
+    result.profit >= 0
+  ) {
+
+    showToast(
+      `День завершён: +${formatMoney(
+        result.profit
+      )}`
+    );
+
+  } else {
+
+    showToast(
+      `День завершён: ${formatMoney(
+        result.profit
+      )}`
+    );
+  }
+
+  setTimeout(
+    maybeTriggerEvent,
+    600
   );
-
-  state =
-    createEmptyState();
-
-  currentScreen =
-    "start";
-
-  render();
-
-  toast("Company reset.");
 }
 
 /* =========================================================
-   PWA
-========================================================= */
+   ДЕЛЕГИРОВАНИЕ СОБЫТИЙ
+   ========================================================= */
 
-if ("serviceWorker" in navigator) {
+document.addEventListener(
+  "click",
+  event => {
 
-  navigator.serviceWorker
-    .register("./sw.js")
-    .catch(error => {
-      console.log(
-        "Service worker error:",
-        error
+    const button =
+      event.target.closest(
+        "[data-action]"
       );
-    });
 
+    if (!button) return;
+
+    const action =
+      button.dataset.action;
+
+    switch (action) {
+
+      case "new-game":
+        openCompanyCreation();
+        break;
+
+      case "continue":
+        state.ui.screen =
+          "home";
+
+        saveGame();
+
+        renderGame();
+        break;
+
+      case "delete-save":
+
+        if (
+          confirm(
+            "Удалить всё сохранение?"
+          )
+        ) {
+          deleteSave();
+        }
+
+        break;
+
+      case "close-modal":
+        closeModal();
+        break;
+
+      case "navigate":
+
+        state.ui.screen =
+          button.dataset.screen;
+
+        saveGame();
+
+        closeModal();
+
+        renderGame();
+
+        break;
+
+      case "more":
+        openMoreMenu();
+        break;
+
+      case "end-day":
+        endDay();
+        break;
+
+      case "change-price":
+        changePrice();
+        break;
+
+      case "select-district":
+
+        state.company.district =
+          button.dataset.district;
+
+        saveGame();
+
+        renderGame();
+
+        showToast(
+          "Район изменён"
+        );
+
+        break;
+
+      case "hire":
+        hireEmployee(
+          button.dataset.role
+        );
+        break;
+
+      case "train":
+        trainEmployee(
+          button.dataset.id
+        );
+        break;
+
+      case "promote":
+        promoteEmployee(
+          button.dataset.id
+        );
+        break;
+
+      case "fire":
+
+        if (
+          confirm(
+            "Уволить этого сотрудника?"
+          )
+        ) {
+
+          fireEmployee(
+            button.dataset.id
+          );
+        }
+
+        break;
+
+      case "marketing":
+        launchMarketing(
+          button.dataset.channel
+        );
+        break;
+
+      case "loan":
+
+        takeLoan(
+          Number(button.dataset.amount),
+          Number(button.dataset.rate),
+          Number(button.dataset.days)
+        );
+
+        break;
+
+      case "building":
+        buyBuilding(
+          button.dataset.building
+        );
+        break;
+
+      case "event-choice":
+
+        chooseEvent(
+          Number(button.dataset.index)
+        );
+
+        break;
+
+      case "analytics-period":
+
+        state.ui.analyticsPeriod =
+          Number(
+            button.dataset.period
+          );
+
+        saveGame();
+
+        renderGame();
+
+        break;
+    }
+
+  }
+);
+
+/* =========================================================
+   ЗАПУСК
+   ========================================================= */
+
+function startApp() {
+
+  loadGame();
+
+  if (
+    !state.initialized
+  ) {
+
+    renderStartScreen();
+
+  } else {
+
+    renderGame();
+  }
+
+  if (
+    "serviceWorker" in navigator
+  ) {
+
+    window.addEventListener(
+      "load",
+      () => {
+
+        navigator.serviceWorker
+          .register("./sw.js")
+          .catch(
+            error =>
+              console.warn(
+                "Service Worker:",
+                error
+              )
+          );
+
+      }
+    );
+  }
 }
 
-/* =========================================================
-   GLOBALS
-========================================================= */
-
-window.navigate = navigate;
-window.openOnboarding = openOnboarding;
-window.createCompany = createCompany;
-window.endDay = endDay;
-window.moveDistrict = moveDistrict;
-window.hireEmployee = hireEmployee;
-window.fireEmployee = fireEmployee;
-window.buyBuilding = buyBuilding;
-window.launchMarketing = launchMarketing;
-window.takeLoan = takeLoan;
-window.payLoan = payLoan;
-window.chooseEvent = chooseEvent;
-window.resetCompany = resetCompany;
-
-/* =========================================================
-   INITIAL RENDER
-========================================================= */
-
-render();
+startApp();
